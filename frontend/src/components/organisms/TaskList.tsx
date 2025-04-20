@@ -1,10 +1,9 @@
 import React from 'react'
 
-import * as styles from './TaskList.css' // スタイルをインポート (任意)
-import { Task } from '../../generated/api'
+import { PutTaskInput, Task } from '../../generated/api'
 import { useUpdateTaskMutation } from '../../store/api/taskApi'
 import { TaskItem } from '../molecules/TaskItem/TaskItem'
-
+import * as styles from './TaskList.css'
 interface TaskListProps {
   tasks: Task[] | undefined
   isLoading: boolean
@@ -21,16 +20,19 @@ export const TaskList: React.FC<TaskListProps> = ({
   const [updateTask] = useUpdateTaskMutation()
 
   // ★ TaskItem のチェックボックスが変更されたときのハンドラー
-  const handleToggleComplete = async (taskId: string, isCompleted: boolean) => {
+  const handleToggleCompleteAsync = async (
+    taskId: string,
+    isCompleted: boolean
+  ) => {
     const task = tasks?.find((t) => t.id === taskId)
     if (!task) return
 
     // PUT なので他のフィールドも必要 (現在の値をそのまま使う)
-    const updatedBody = {
+    const updatedBody: PutTaskInput = {
       name: task.name,
-      assigneeId: task.assigneeId,
-      dueDate: task.dueDate,
-      isCompleted: isCompleted // 変更後の完了状態
+      assigneeId: task.assigneeId ?? null, // ?? null で undefined を null に変換
+      dueDate: task.dueDate ?? null, // ?? null で undefined を null に変換
+      isCompleted: isCompleted
     }
 
     try {
@@ -41,6 +43,13 @@ export const TaskList: React.FC<TaskListProps> = ({
       console.error('Failed to update task completion status:', err)
       // TODO: ユーザーへのエラー通知
     }
+  }
+
+  const handleToggleComplete = (taskId: string, isCompleted: boolean) => {
+    handleToggleCompleteAsync(taskId, isCompleted).catch((err) => {
+      // 必要であれば、ここでもエラーハンドリングを追加
+      console.error('Unexpected error during toggle complete:', err)
+    })
   }
 
   if (isLoading) {

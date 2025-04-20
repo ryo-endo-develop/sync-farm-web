@@ -1,3 +1,5 @@
+import './styles/global.css.ts'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Provider } from 'react-redux'
@@ -5,6 +7,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
 import { store } from './store'
+import { lightTheme } from './styles/theme.css'
 
 // MSWの初期化を関数に切り出す
 async function initializeMSW() {
@@ -53,3 +56,4 @@ async function renderApp() {
 
 // アプリ起動
 void renderApp()
+document.body.classList.add(lightTheme)

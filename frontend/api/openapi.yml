@@ -67,6 +67,44 @@ components:
         - createdAt
         - updatedAt
 
+    # --- User Schemas ---
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ユーザーの一意なID
+          example: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+          readOnly: true
+        name:
+          type: string
+          description: ユーザー名 (表示名)
+          example: '田中 太郎'
+        # 必要に応じて他のユーザー情報を追加 (例: email, avatarUrl)
+        # email:
+        #   type: string
+        #   format: email
+        # avatarUrl:
+        #   type: string
+        #   format: url
+        #   nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          description: アカウント作成日時
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          description: アカウント更新日時
+          readOnly: true
+      required:
+        - id
+        - name
+        - createdAt
+        - updatedAt
+
     # POST /tasks のリクエストボディ (IDは含まない)
     CreateTaskInput:
       type: object
@@ -327,6 +365,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # --- Users API ---
+  /members:
+    get:
+      summary: 家族メンバー一覧取得
+      tags: [Members]
+      description: 現在認証されているユーザーが所属する家族（または共有グループ）のメンバー一覧を取得します。担当者選択などで使用します。
+      # parameters: # 必要に応じて検索やページネーションパラメータを追加
+      #   - name: search
+      #     in: query
+      #     schema:
+      #       type: string
+      responses:
+        '200':
+          description: メンバー一覧取得成功
+          content:
+            application/json:
+              schema:
+                # SuccessResponseでラップし、dataの中身を定義
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User' # Userスキーマの配列
+                    required:
+                      - data
+              # レスポンスサンプル (任意)
+              examples:
+                default:
+                  value:
+                    data:
+                      - id: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+                        name: '田中 太郎'
+                        createdAt: '2025-01-10T10:00:00Z'
+                        updatedAt: '2025-04-15T11:00:00Z'
+                      - id: 'e1d2c3b4-a598-7654-3210-fedcba98765f'
+                        name: '山田 花子'
+                        createdAt: '2025-02-20T15:30:00Z'
+                        updatedAt: '2025-03-01T09:45:00Z'
         '500':
           description: Internal Server Error
           content:

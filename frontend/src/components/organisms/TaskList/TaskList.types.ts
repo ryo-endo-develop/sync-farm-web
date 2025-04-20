@@ -1,4 +1,4 @@
-import type { Task } from '../../generated/api' // Task 型をインポート
+import type { Task } from '../../../generated/api' // Task 型をインポート
 
 export interface TaskListProps {
   tasks: Task[] | undefined // タスクデータの配列 or 未取得状態

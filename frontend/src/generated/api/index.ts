@@ -13,6 +13,8 @@ export type { PutTaskInput } from './models/PutTaskInput';
 export type { SuccessResponse } from './models/SuccessResponse';
 export type { Task } from './models/Task';
 export type { TaskIdParam } from './models/TaskIdParam';
+export type { User } from './models/User';
 
+export { MembersService } from './services/MembersService';
 export { MetaService } from './services/MetaService';
 export { TasksService } from './services/TasksService';

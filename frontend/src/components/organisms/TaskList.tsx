@@ -1,15 +1,16 @@
 import React from 'react'
 
 import * as styles from './TaskList.css' // スタイルをインポート (任意)
-import type { TaskListProps } from './TaskList.types' // 型定義をインポート (任意)
+import { Task } from '../../generated/api'
+import { useUpdateTaskMutation } from '../../store/api/taskApi'
+import { TaskItem } from '../molecules/TaskItem/TaskItem'
 
-// TaskListProps を直接定義してもOK
-// interface TaskListProps {
-//   tasks: Task[] | undefined;
-//   isLoading: boolean;
-//   isError: boolean;
-//   error?: any;
-// }
+interface TaskListProps {
+  tasks: Task[] | undefined
+  isLoading: boolean
+  isError: boolean
+  error?: any
+}
 
 export const TaskList: React.FC<TaskListProps> = ({
   tasks,
@@ -17,6 +18,31 @@ export const TaskList: React.FC<TaskListProps> = ({
   isError,
   error
 }) => {
+  const [updateTask] = useUpdateTaskMutation()
+
+  // ★ TaskItem のチェックボックスが変更されたときのハンドラー
+  const handleToggleComplete = async (taskId: string, isCompleted: boolean) => {
+    const task = tasks?.find((t) => t.id === taskId)
+    if (!task) return
+
+    // PUT なので他のフィールドも必要 (現在の値をそのまま使う)
+    const updatedBody = {
+      name: task.name,
+      assigneeId: task.assigneeId,
+      dueDate: task.dueDate,
+      isCompleted: isCompleted // 変更後の完了状態
+    }
+
+    try {
+      console.log('Updating task:', taskId, updatedBody)
+      await updateTask({ taskId, body: updatedBody }).unwrap()
+      // キャッシュ無効化によりリストは自動更新されるはず
+    } catch (err) {
+      console.error('Failed to update task completion status:', err)
+      // TODO: ユーザーへのエラー通知
+    }
+  }
+
   if (isLoading) {
     // ローディング中の表示 (将来的には Spinner Atom を使う)
     return <div className={styles.loading}>読み込み中...</div>
@@ -37,22 +63,12 @@ export const TaskList: React.FC<TaskListProps> = ({
   return (
     <ul className={styles.list}>
       {tasks.map((task) => (
-        // 将来的には TaskItem Molecule コンポーネントを使う
-        <li key={task.id} className={styles.listItem}>
-          <input
-            type="checkbox"
-            checked={task.isCompleted}
-            readOnly
-            style={{ marginRight: '8px' }}
-          />
-          <span>{task.name}</span>
-          <span
-            style={{ fontSize: '0.8em', marginLeft: '8px', color: '#6c757d' }}
-          >
-            {task.dueDate ? `(期限: ${task.dueDate})` : ''}
-          </span>
-          {/* ここに更新・削除ボタンなどを後で追加 */}
-        </li>
+        // ★ TaskItem コンポーネントを使用
+        <TaskItem
+          key={task.id}
+          task={task}
+          onToggleComplete={handleToggleComplete} // ★ ハンドラーを渡す
+        />
       ))}
     </ul>
   )

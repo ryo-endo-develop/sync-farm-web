@@ -8,7 +8,7 @@ import {
   useUpdateTaskMutation
 } from '../../store/api/taskApi'
 import { Button } from '../atoms/Button/Button'
-import { TaskList } from '../organisms/TaskList'
+import { TaskList } from '../organisms/TaskList/TaskList'
 
 const TaskListPage: React.FC = () => {
   // RTK Query フックを使ってタスク一覧を取得

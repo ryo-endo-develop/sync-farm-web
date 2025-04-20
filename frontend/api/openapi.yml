@@ -1,0 +1,335 @@
+openapi: 3.0.0
+info:
+  title: SyncFam API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Development server
+
+components:
+  schemas:
+    # --- Common Wrapper Schema ---
+    SuccessResponse:
+      type: object
+      properties:
+        data:
+          description: APIコールが成功した場合の実際のデータ
+          # 型は各APIのレスポンス定義で上書き or anyOf/oneOf などで指定
+      required:
+        - data
+
+    # --- Task Schemas ---
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: タスクの一意なID (サーバーで自動採番)
+          example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef'
+          readOnly: true # クライアントからは送信されず、サーバーが生成することを示す
+        name:
+          type: string
+          description: タスク名
+          example: '買い物に行く'
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 担当者のユーザーID (nullの場合は未割り当て)
+          example: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: 期限日 (YYYY-MM-DD)
+          example: '2025-04-30'
+        isCompleted:
+          type: boolean
+          description: 完了状態フラグ
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+          example: '2025-04-20T10:00:00Z'
+          readOnly: true # 作成日時は通常サーバーで設定
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+          example: '2025-04-20T11:00:00Z'
+          readOnly: true # 更新日時は通常サーバーで設定
+      required:
+        - id
+        - name
+        - isCompleted
+        - createdAt
+        - updatedAt
+
+    # POST /tasks のリクエストボディ (IDは含まない)
+    CreateTaskInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: タスク名 (必須)
+          example: '新しいタスク'
+          minLength: 1 # バリデーション例
+          maxLength: 100
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 担当者のユーザーID (null許容)
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: 期限日 (YYYY-MM-DD, null許容)
+          # pattern: '^\d{4}-\d{2}-\d{2}$' # 正規表現でのバリデーション例
+      required:
+        - name
+
+    # PUT /tasks/{taskId} のリクエストボディ
+    PutTaskInput:
+      type: object
+      description: 更新後のタスクの完全な状態 (id, createdAt, updatedAtを除く)
+      properties:
+        name:
+          type: string
+          description: タスク名 (必須)
+          example: '更新されたタスク名'
+          minLength: 1
+          maxLength: 100
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 担当者のユーザーID (null許容)
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: 期限日 (YYYY-MM-DD, null許容)
+        isCompleted:
+          type: boolean
+          description: 完了状態フラグ (必須)
+          example: true
+      required:
+        - name
+        - isCompleted
+        # assigneeId, dueDate は nullable なので必須ではない
+
+    # --- Common Error Schema ---
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: エラーメッセージ
+          example: '入力内容に誤りがあります。'
+        details:
+          # バリデーションエラー等の詳細を格納 (キーがフィールド名、値がエラーメッセージなど)
+          type: object
+          additionalProperties:
+            type: string # または array of string
+          example:
+            {
+              'name': 'タスク名は必須です。',
+              'dueDate': '日付の形式が正しくありません。'
+            }
+      required:
+        - message
+
+  parameters:
+    TaskIdParam:
+      name: taskId
+      in: path
+      required: true
+      description: 操作対象のタスクID
+      schema:
+        type: string
+        format: uuid
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      tags: [Meta]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object # SuccessResponse でラップしない例 (ヘルスチェック等)
+                properties:
+                  status:
+                    type: string
+                    example: OK
+
+  # --- Tasks API ---
+  /tasks:
+    get:
+      summary: タスク一覧取得
+      tags: [Tasks]
+      parameters:
+        - name: isCompleted
+          in: query
+          required: false
+          description: 完了状態でフィルタリング (true/false)
+          schema:
+            type: boolean
+        # Add other query parameters like sort, limit, offset for pagination later
+      responses:
+        '200':
+          description: タスク一覧取得成功
+          content:
+            application/json:
+              schema:
+                # SuccessResponseでラップし、dataの中身を定義
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Task'
+                    required:
+                      - data
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: 新規タスク作成
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskInput'
+            # リクエストボディ全体のサンプル例
+            examples:
+              minimal:
+                summary: 最小限のタスク
+                value:
+                  name: '会議資料作成'
+              full:
+                summary: 全項目指定
+                value:
+                  name: 'プレゼン準備'
+                  assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+                  dueDate: '2025-05-10'
+      responses:
+        '201':
+          description: タスク作成成功
+          content:
+            application/json:
+              schema:
+                # SuccessResponseでラップし、dataの中身を定義
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+                    required:
+                      - data
+        '400':
+          description: Bad Request (バリデーションエラーなど)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskIdParam'
+    put:
+      summary: タスク更新 (全量)
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutTaskInput'
+            examples:
+              updateTask:
+                summary: タスク情報の更新
+                value:
+                  name: '買い物リストの更新'
+                  assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+                  dueDate: '2025-04-25'
+                  isCompleted: false
+              completeTask:
+                summary: タスクを完了にする
+                value:
+                  name: '会議室予約'
+                  assigneeId: null
+                  dueDate: null
+                  isCompleted: true
+      responses:
+        '200': # 成功時は 200 OK で更新後のリソースを返す
+          description: タスク更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+                    required:
+                      - data
+        '400':
+          description: Bad Request (バリデーションエラーなど)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Task Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: タスク削除
+      tags: [Tasks]
+      responses:
+        '204':
+          description: タスク削除成功 (No Content) # ボディは返さない
+        '404':
+          description: Task Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

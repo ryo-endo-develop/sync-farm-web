@@ -1,7 +1,12 @@
 // src/mocks/handlers.ts
 import { delay, http, HttpResponse } from 'msw'
 
-import type { CreateTaskInput, PutTaskInput, Task } from '../generated/api' // 生成された型をインポート
+import type {
+  CreateTaskInput,
+  PutTaskInput,
+  Task,
+  User
+} from '../generated/api' // 生成された型をインポート
 
 // インメモリでタスクデータを保持 (モック用)
 let mockTasks: Task[] = [
@@ -32,6 +37,28 @@ let mockTasks: Task[] = [
     createdAt: '2025-04-18T09:00:00Z',
     updatedAt: '2025-04-19T11:00:00Z'
   }
+]
+
+let mockUsers: User[] = [
+  {
+    id: crypto.randomUUID(), // ランダムなUUID
+    name: 'あなた', // ログインユーザー自身を表す例
+    createdAt: new Date(2024, 10, 1).toISOString(), // 2024-11-01
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: crypto.randomUUID(),
+    name: 'パートナー',
+    createdAt: new Date(2024, 10, 5).toISOString(), // 2024-11-05
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: crypto.randomUUID(),
+    name: 'おばあちゃん',
+    createdAt: new Date(2025, 0, 15).toISOString(), // 2025-01-15
+    updatedAt: new Date().toISOString()
+  }
+  // 必要に応じて他の家族メンバーを追加
 ]
 
 const API_BASE_URL = '/api/v1' // OpenAPIで定義したベースパス
@@ -149,5 +176,12 @@ export const handlers = [
 
     // 成功時は 204 No Content (ボディなし)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // --- Members API ---
+  http.get(`${API_BASE_URL}/members`, async () => {
+    await delay(150) // 少し遅延させる
+    // OpenAPI で定義した通り { data: User[] } の形式で返す
+    return HttpResponse.json({ data: mockUsers })
   })
 ]

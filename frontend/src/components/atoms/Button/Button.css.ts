@@ -43,6 +43,7 @@ export const button = recipe({
     textDecoration: 'none', // リンクとして使う場合の下線を消す
     userSelect: 'none', // テキスト選択を不可に (任意)
     whiteSpace: 'nowrap', // テキストの折り返しを防ぐ (任意)
+    gap: vars.space[2],
 
     // 無効状態のスタイル
     ':disabled': {
@@ -231,25 +232,4 @@ export const iconWrapper = style({
   alignSelf: 'center' // ボタンの高さの中央に配置
   // アイコン自体のサイズは、渡されるアイコンコンポーネント側で指定するか、
   // ここで font-size に連動させる (例: `width: '1em', height: '1em'`)
-})
-
-// アイコンとテキストの間隔を制御するスタイル
-export const iconSpacing = style({
-  // ボタン要素直下で、テキスト(span想定)とアイコン(iconWrapper)の間のマージンを設定
-  // :has セレクタを使わずに、より単純な隣接セレクタ(+)を使う
-  selectors: {
-    // 左アイコン + テキスト の場合
-    [`& ${iconWrapper}:first-child + span`]: {
-      marginLeft: vars.space[2] // size=md の場合の間隔例
-    },
-    // テキスト + 右アイコン の場合
-    [`& span + ${iconWrapper}:last-child`]: {
-      marginLeft: vars.space[2] // size=md の場合の間隔例
-    },
-    // 左アイコン + 右アイコン (テキストなし) の場合 - スペース不要
-    [`& ${iconWrapper}:first-child + ${iconWrapper}:last-child`]: {
-      marginLeft: 0
-    }
-  }
-  // サイズごとに間隔を変える場合は、recipe の compoundVariants で調整する方が良いかも
 })

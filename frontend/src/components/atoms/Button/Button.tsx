@@ -34,7 +34,7 @@ export const Button: React.FC<ButtonProps> = (props) => {
   return (
     <button
       type={type}
-      className={`${buttonClassName} ${styles.iconSpacing} ${className || ''}`}
+      className={`${buttonClassName} ${className || ''}`}
       onClick={onClick}
       disabled={isDisabled}
       aria-busy={isLoading}

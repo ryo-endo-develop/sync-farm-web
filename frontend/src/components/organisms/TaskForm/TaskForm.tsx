@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Controller, SubmitHandler, useForm } from 'react-hook-form'
 
 import {
@@ -19,7 +19,9 @@ import { TaskFormProps } from './TaskForm.types'
 export const TaskForm: React.FC<TaskFormProps> = ({
   onSubmit,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  initialValues,
+  isEditing = false
 }) => {
   const {
     data: members,
@@ -30,12 +32,29 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const {
     handleSubmit,
     formState: { errors, isSubmitting },
-    control
+    control,
+    reset
   } = useForm<CreateTaskFormData>({
     // ★ 型引数に CreateTaskFormData を指定
-    resolver: zodResolver(CreateTaskFormSchema), // ★ Zod スキーマでバリデーション
-    defaultValues: { name: '', assigneeId: '', dueDate: '' } // defaultValues は空文字が良い場合も
+    resolver: zodResolver(CreateTaskFormSchema) // ★ Zod スキーマでバリデーション
   })
+
+  // ★ initialValues が変更されたらフォームをリセットする
+  useEffect(() => {
+    if (initialValues) {
+      // assigneeId や dueDate が null の場合に備えて空文字に変換
+      const defaultVals = {
+        name: initialValues.name ?? '',
+        assigneeId: initialValues.assigneeId ?? '',
+        dueDate: initialValues.dueDate ?? ''
+        // isCompleted は CreateTaskFormSchema にないので注意 (必要ならスキーマに追加)
+      }
+      reset(defaultVals)
+    } else {
+      // 新規作成モードの場合はフォームを空にする
+      reset({ name: '', assigneeId: '', dueDate: '' })
+    }
+  }, [initialValues, reset]) // initialValues と reset を依存配列に
 
   const handleValidSubmit: SubmitHandler<CreateTaskFormData> = async (data) => {
     const submittedData = {
@@ -187,7 +206,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           isLoading={submitting}
           disabled={submitting}
         >
-          作成
+          {/* ★ isEditing フラグに応じてボタンテキストを変更 */}
+          {isEditing ? '更新' : '作成'}
         </Button>
       </div>
     </form>

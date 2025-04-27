@@ -9,6 +9,6 @@ export type TaskItemProps = {
   // (オプション) 削除ボタンがクリックされたときなど
   onDelete?: (taskId: string) => void
   // (オプション) 更新ボタンがクリックされたときなど
-  // onEdit?: (taskId: string) => void;
+  onEdit?: (taskId: string) => void
   className?: string
 }

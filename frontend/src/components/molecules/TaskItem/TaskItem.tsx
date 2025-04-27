@@ -1,4 +1,4 @@
-import { CalendarDays, Trash } from 'lucide-react' // アイコン例
+import { CalendarDays, Pencil, Trash } from 'lucide-react' // アイコン例
 import React from 'react'
 
 import { vars } from '../../../styles/theme.css'
@@ -15,7 +15,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onToggleComplete,
   // onSelect,
   onDelete,
-  // onEdit,
+  onEdit,
   className
 }) => {
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,6 +25,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const handleDeleteClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation() // 親要素へのクリックイベント伝播を停止 (もしあれば)
     onDelete?.(task.id) // onDelete コールバックを呼び出す
+  }
+
+  const handleEditClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    onEdit?.(task.id) // onEdit コールバックを呼び出す
   }
 
   // 期限日のフォーマットや期限切れ判定 (仮)
@@ -96,6 +101,18 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       </div>
 
       <div className={styles.actions}>
+        {/* ★ 編集ボタンを追加 */}
+        {onEdit && ( // onEdit が渡されている場合のみ表示
+          <Button
+            size="sm"
+            variant="text"
+            onClick={handleEditClick}
+            aria-label={`タスク ${task.name} を編集`}
+            style={{ padding: vars.space[1] }}
+          >
+            <Icon as={Pencil} size={16} /> {/* 編集アイコン */}
+          </Button>
+        )}
         {/* 削除ボタン */}
         {onDelete && ( // onDelete が渡されている場合のみ表示
           <Button

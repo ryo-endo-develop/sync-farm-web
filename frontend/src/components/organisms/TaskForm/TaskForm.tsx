@@ -6,9 +6,12 @@ import {
   CreateTaskFormData,
   CreateTaskFormSchema
 } from '../../../schemas/taskSchema'
+import { useGetMembersQuery } from '../../../store/api/usersApi'
 import { Button } from '../../atoms/Button/Button'
 import { Input } from '../../atoms/Input/Input'
 import { Label } from '../../atoms/Label/Label'
+import { Select } from '../../atoms/Select/Select'
+import { SelectOption } from '../../atoms/Select/Select.types'
 import { Text } from '../../atoms/Text/Text'
 import * as styles from './TaskForm.css'
 import { TaskFormProps } from './TaskForm.types'
@@ -18,6 +21,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   onCancel,
   isLoading = false
 }) => {
+  const {
+    data: members,
+    isLoading: isLoadingMembers,
+    isError: isErrorMembers
+  } = useGetMembersQuery()
+
   const {
     handleSubmit,
     formState: { errors, isSubmitting },
@@ -29,17 +38,23 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   })
 
   const handleValidSubmit: SubmitHandler<CreateTaskFormData> = async (data) => {
-    try {
-      await onSubmit(data) // 親から渡された onSubmit を実行
-    } catch (error) {
-      console.error('onSubmit failed:', error)
-      // 必要であれば、ここでフォームエラーを設定するなどの処理を追加
-      // 例: setError('root.serverError', { type: 'manual', message: '送信に失敗しました' });
-      // このエラーをユーザーに表示する仕組みも別途必要
+    const submittedData = {
+      ...data,
+      assigneeId: data.assigneeId === '' ? null : data.assigneeId,
+      dueDate: data.dueDate === '' ? null : data.dueDate
     }
+    await onSubmit(submittedData)
   }
 
-  const submitting = isLoading || isSubmitting
+  const submitting = isLoading || isSubmitting || isLoadingMembers
+
+  const memberOptions: SelectOption[] = React.useMemo(() => {
+    if (!members) return []
+    return members.map((member) => ({
+      value: member.id, // value には ID を設定
+      label: member.name // label には名前を設定
+    }))
+  }, [members]) // members が変化した場合のみ再計算
 
   return (
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -82,24 +97,34 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
       {/* 担当者ID */}
       <div className={styles.formField}>
-        <Label htmlFor="assigneeId">担当者ID (仮)</Label>
+        <Label htmlFor="assigneeId">担当者</Label>
         <Controller
-          name="assigneeId" // ★ フィールド名
+          name="assigneeId" // フィールド名はそのまま
           control={control}
+          // デフォルト値は useForm で設定済みだが、Controller でも設定可能
+          // defaultValue="" // 未選択状態の値
           render={({ field, fieldState }) => (
-            <Input
+            <Select
               id="assigneeId"
-              {...field} // ★ field オブジェクトを展開
-              value={field.value ?? ''}
-              isError={!!fieldState.error}
-              disabled={submitting}
-              placeholder="例: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (空欄可)"
+              {...field}
+              value={field.value ?? ''} // null/undefined なら空文字に
+              options={memberOptions} // ★ API から取得したデータで選択肢を生成
+              placeholder="担当者を選択" // ★ placeholder を設定
+              isError={!!fieldState.error || isErrorMembers} // ★ APIエラーも考慮
+              disabled={submitting || isLoadingMembers} // ★ メンバー読み込み中も無効化
               aria-describedby={
                 fieldState.error ? 'assigneeId-error' : undefined
               }
             />
           )}
         />
+        {/* メンバーリスト取得エラーの場合の表示 (任意) */}
+        {isErrorMembers && (
+          <Text fontSize="sm" color="error" className={styles.errorMessage}>
+            担当者リストの読み込みに失敗しました。
+          </Text>
+        )}
+        {/* バリデーションエラー表示 */}
         {errors.assigneeId && (
           <Text
             id="assigneeId-error"

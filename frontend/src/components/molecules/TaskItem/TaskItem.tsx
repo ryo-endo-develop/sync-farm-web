@@ -1,10 +1,11 @@
-// import { Icon } from '../../atoms/Icon/Icon';       // Icon Atom (未実装)
-// import { Button } from '../../atoms/Button/Button'; // Button Atom (削除・編集用)
-import { CalendarDays } from 'lucide-react' // アイコン例
+import { CalendarDays, Trash } from 'lucide-react' // アイコン例
 import React from 'react'
 
+import { vars } from '../../../styles/theme.css'
 import { Avatar } from '../../atoms/Avatar/Avatar'
+import { Button } from '../../atoms/Button/Button'
 import { Checkbox } from '../../atoms/Checkbox/Checkbox'
+import { Icon } from '../../atoms/Icon/Icon'
 import { Text } from '../../atoms/Text/Text'
 import * as styles from './TaskItem.css'
 import { TaskItemProps } from './TaskItem.types'
@@ -13,12 +14,17 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   task,
   onToggleComplete,
   // onSelect,
-  // onDelete,
+  onDelete,
   // onEdit,
   className
 }) => {
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     onToggleComplete(task.id, event.target.checked)
+  }
+
+  const handleDeleteClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation() // 親要素へのクリックイベント伝播を停止 (もしあれば)
+    onDelete?.(task.id) // onDelete コールバックを呼び出す
   }
 
   // 期限日のフォーマットや期限切れ判定 (仮)
@@ -89,15 +95,21 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         </div>
       </div>
 
-      {/* アクションボタン (任意) */}
-      {/* <div className={styles.actions}>
-           <Button size="sm" variant="text" onClick={() => onEdit?.(task.id)} aria-label="編集">
-               <Icon as={PencilSimple} size={16} />
-           </Button>
-           <Button size="sm" variant="text" onClick={() => onDelete?.(task.id)} aria-label="削除" className={styles.deleteButton}>
-               <Icon as={Trash} size={16} />
-           </Button>
-       </div> */}
+      <div className={styles.actions}>
+        {/* 削除ボタン */}
+        {onDelete && ( // onDelete が渡されている場合のみ表示
+          <Button
+            size="sm" // 小さいボタン
+            variant="text" // テキストボタン (背景なし)
+            onClick={handleDeleteClick}
+            aria-label={`タスク ${task.name} を削除`} // スクリーンリーダー向けラベル
+            className={styles.deleteButton} // エラーカラーなどを適用 (任意)
+            style={{ padding: vars.space[1] }} // アイコンボタンのpadding調整例
+          >
+            <Icon as={Trash} size={16} />
+          </Button>
+        )}
+      </div>
     </li>
   )
 }

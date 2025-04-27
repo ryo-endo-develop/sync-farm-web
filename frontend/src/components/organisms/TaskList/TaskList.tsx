@@ -1,7 +1,10 @@
 import React from 'react'
 
 import { PutTaskInput, Task } from '../../../generated/api'
-import { useUpdateTaskMutation } from '../../../store/api/taskApi'
+import {
+  useDeleteTaskMutation,
+  useUpdateTaskMutation
+} from '../../../store/api/taskApi'
 import { TaskItem } from '../../molecules/TaskItem/TaskItem'
 import * as styles from './TaskList.css'
 interface TaskListProps {
@@ -18,6 +21,7 @@ export const TaskList: React.FC<TaskListProps> = ({
   error
 }) => {
   const [updateTask] = useUpdateTaskMutation()
+  const [deleteTask] = useDeleteTaskMutation()
 
   // ★ TaskItem のチェックボックスが変更されたときのハンドラー
   const handleToggleCompleteAsync = async (
@@ -27,7 +31,6 @@ export const TaskList: React.FC<TaskListProps> = ({
     const task = tasks?.find((t) => t.id === taskId)
     if (!task) return
 
-    // PUT なので他のフィールドも必要 (現在の値をそのまま使う)
     const updatedBody: PutTaskInput = {
       name: task.name,
       assigneeId: task.assigneeId ?? null, // ?? null で undefined を null に変換
@@ -52,6 +55,26 @@ export const TaskList: React.FC<TaskListProps> = ({
     })
   }
 
+  const handleDeleteTask = (taskId: string) => {
+    const task = tasks?.find((t) => t.id === taskId)
+    if (!task) return
+
+    // ★ window.confirm で確認ダイアログを表示
+    if (window.confirm(`タスク「${task.name}」を削除してもよろしいですか？`)) {
+      // 「OK」が押されたら削除 Mutation を実行
+      deleteTask(taskId)
+        .unwrap()
+        .then(() => {
+          console.log('タスク削除成功:', taskId)
+          // キャッシュ無効化によりリストは自動更新されるはず
+        })
+        .catch((err) => {
+          console.error('タスク削除失敗:', err)
+          // TODO: ユーザーへのエラー通知
+        })
+    }
+  }
+
   if (isLoading) {
     // ローディング中の表示 (将来的には Spinner Atom を使う)
     return <div className={styles.loading}>読み込み中...</div>
@@ -72,11 +95,14 @@ export const TaskList: React.FC<TaskListProps> = ({
   return (
     <ul className={styles.list}>
       {tasks.map((task) => (
+        // const isProcessing = (isUpdating && updateTask.requestId === ???) || (isDeleting && deleteTask.requestId === ???)
+        // ↑ RTK Query で特定IDの処理中かを判定するのは少し複雑なので、一旦省略
         // ★ TaskItem コンポーネントを使用
         <TaskItem
           key={task.id}
           task={task}
-          onToggleComplete={handleToggleComplete} // ★ ハンドラーを渡す
+          onToggleComplete={handleToggleComplete}
+          onDelete={handleDeleteTask}
         />
       ))}
     </ul>

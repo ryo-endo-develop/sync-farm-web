@@ -97,9 +97,17 @@ export const avatarPlaceholder = style({
 })
 
 export const actions = style({
-  // 更新・削除ボタン用のコンテナ (任意)
   marginLeft: 'auto', // 右端に寄せる
   display: 'flex',
-  gap: vars.space[1],
-  flexShrink: 0
+  alignItems: 'center', // ボタンの高さを揃える
+  gap: vars.space[1], // ボタン間の隙間 (狭め)
+  flexShrink: 0 // コンテナが縮んでもボタンが潰れないように
+})
+
+// (オプション) 削除ボタンの色などを調整する場合
+export const deleteButton = style({
+  color: vars.color.error, // アイコンの色をエラーカラーに
+  ':hover': {
+    backgroundColor: `color-mix(in srgb, ${vars.color.error} 10%, transparent 90%)` // ホバー背景
+  }
 })

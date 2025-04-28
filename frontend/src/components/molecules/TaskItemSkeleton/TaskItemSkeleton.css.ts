@@ -1,13 +1,13 @@
 import { style } from '@vanilla-extract/css'
+
 import { vars } from '../../../styles/theme.css'
 // TaskItem のスタイルを一部流用・参照
 import {
-  container,
+  actions,
   checkboxWrapper,
+  container,
   content,
-  details,
-  actions
-} from '../TaskItem/TaskItem.css'
+  details} from '../TaskItem/TaskItem.css'
 
 // TaskItem のコンテナスタイルを流用
 export const skeletonContainer = style([

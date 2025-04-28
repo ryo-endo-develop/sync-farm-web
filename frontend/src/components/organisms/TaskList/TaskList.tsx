@@ -3,8 +3,8 @@ import React from 'react'
 import { PutTaskInput, Task } from '../../../generated/api'
 import { useUpdateTaskMutation } from '../../../store/api/taskApi'
 import { TaskItem } from '../../molecules/TaskItem/TaskItem'
-import * as styles from './TaskList.css'
 import { TaskItemSkeleton } from '../../molecules/TaskItemSkeleton/TaskItemSkeleton'
+import * as styles from './TaskList.css'
 
 interface TaskListProps {
   tasks: Task[] | undefined

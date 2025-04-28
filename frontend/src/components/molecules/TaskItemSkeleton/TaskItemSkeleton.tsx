@@ -1,7 +1,8 @@
 import React from 'react'
-import * as styles from './TaskItemSkeleton.css'
-import { Skeleton } from '../../atoms/Skeleton/Skeleton'
+
 import { vars } from '../../../styles/theme.css'
+import { Skeleton } from '../../atoms/Skeleton/Skeleton'
+import * as styles from './TaskItemSkeleton.css'
 
 export const TaskItemSkeleton: React.FC = () => {
   return (

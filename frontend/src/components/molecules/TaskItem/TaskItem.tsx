@@ -3,6 +3,7 @@ import React from 'react'
 
 import { vars } from '../../../styles/theme.css'
 import { Avatar } from '../../atoms/Avatar/Avatar'
+import { Badge } from '../../atoms/Badge/Badge'
 import { Button } from '../../atoms/Button/Button'
 import { Checkbox } from '../../atoms/Checkbox/Checkbox'
 import { Icon } from '../../atoms/Icon/Icon'
@@ -30,6 +31,32 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const handleEditClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     onEdit?.(task.id) // onEdit コールバックを呼び出す
+  }
+
+  // ★ ラベルの色を決定するロジック (仮 - 必要に応じて調整)
+  const getLabelColorScheme = (label: string) => {
+    // 簡単な例: 特定のラベルに色を割り当てる
+    if (
+      label.toLowerCase().includes('重要') ||
+      label.toLowerCase().includes('urgent')
+    )
+      return 'error'
+    if (
+      label.toLowerCase().includes('家事') ||
+      label.toLowerCase().includes('chore')
+    )
+      return 'secondary'
+    if (
+      label.toLowerCase().includes('仕事') ||
+      label.toLowerCase().includes('work')
+    )
+      return 'primary'
+    if (
+      label.toLowerCase().includes('買い物') ||
+      label.toLowerCase().includes('shopping')
+    )
+      return 'accent'
+    return 'gray' // デフォルト
   }
 
   // 期限日のフォーマットや期限切れ判定 (仮)
@@ -67,9 +94,26 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
       {/* タスク名と詳細 */}
       <div className={styles.content}>
+        {/* タスク名 */}
         <Text as="span" className={taskNameClassName} title={task.name}>
           {task.name}
         </Text>
+
+        {/* ★ ラベル表示エリア */}
+        {task.labels &&
+          task.labels.length > 0 && ( // labels が存在し、空でない場合のみ表示
+            <div className={styles.labelsWrapper}>
+              {task.labels.map((label) => (
+                <Badge
+                  key={label} // ラベル名をキーにする (一意である前提)
+                  colorScheme={getLabelColorScheme(label)} // ラベルに応じて色を決定
+                >
+                  {label}
+                </Badge>
+              ))}
+            </div>
+          )}
+
         <div className={styles.details}>
           <Avatar
             // src={null} // 将来的にユーザー画像URLを渡す

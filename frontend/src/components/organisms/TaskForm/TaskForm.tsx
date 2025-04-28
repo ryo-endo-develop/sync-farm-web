@@ -1,4 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
+import {
+  Content as PopoverContent,
+  Portal as PopoverPortal,
+  Root as PopoverRoot,
+  Trigger as PopoverTrigger
+} from '@radix-ui/react-popover'
+import { Check, ChevronDown } from 'lucide-react'
 import React, { useEffect } from 'react'
 import { Controller, SubmitHandler, useForm } from 'react-hook-form'
 
@@ -7,14 +15,27 @@ import {
   CreateTaskFormSchema
 } from '../../../schemas/taskSchema'
 import { useGetMembersQuery } from '../../../store/api/usersApi'
+import { Badge } from '../../atoms/Badge/Badge'
 import { Button } from '../../atoms/Button/Button'
 import { Input } from '../../atoms/Input/Input'
 import { Label } from '../../atoms/Label/Label'
 import { Select } from '../../atoms/Select/Select'
 import { SelectOption } from '../../atoms/Select/Select.types'
 import { Text } from '../../atoms/Text/Text'
+import * as multiSelectStyles from './LabelMultiSelect.css'
 import * as styles from './TaskForm.css'
 import { TaskFormProps } from './TaskForm.types'
+
+// 仮のラベル候補 (将来的には API から取得 or 設定ファイル)
+const AVAILABLE_LABELS = [
+  '家事',
+  '仕事',
+  '買い物',
+  '重要',
+  '個人',
+  '後でやる',
+  '不明'
+]
 
 export const TaskForm: React.FC<TaskFormProps> = ({
   onSubmit,
@@ -35,34 +56,30 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     control,
     reset
   } = useForm<CreateTaskFormData>({
-    // ★ 型引数に CreateTaskFormData を指定
-    resolver: zodResolver(CreateTaskFormSchema) // ★ Zod スキーマでバリデーション
+    resolver: zodResolver(CreateTaskFormSchema), // ★ Zod スキーマでバリデーション
+    defaultValues: { name: '', assigneeId: '', dueDate: '', labels: [] }
   })
 
   // ★ initialValues が変更されたらフォームをリセットする
   useEffect(() => {
     if (initialValues) {
       // assigneeId や dueDate が null の場合に備えて空文字に変換
-      const defaultVals = {
+      const defaultVals: CreateTaskFormData = {
         name: initialValues.name ?? '',
         assigneeId: initialValues.assigneeId ?? '',
-        dueDate: initialValues.dueDate ?? ''
+        dueDate: initialValues.dueDate ?? '',
+        labels: Array.isArray(initialValues.labels) ? initialValues.labels : []
         // isCompleted は CreateTaskFormSchema にないので注意 (必要ならスキーマに追加)
       }
       reset(defaultVals)
     } else {
       // 新規作成モードの場合はフォームを空にする
-      reset({ name: '', assigneeId: '', dueDate: '' })
+      reset({ name: '', assigneeId: '', dueDate: '', labels: [] })
     }
   }, [initialValues, reset]) // initialValues と reset を依存配列に
 
   const handleValidSubmit: SubmitHandler<CreateTaskFormData> = async (data) => {
-    const submittedData = {
-      ...data,
-      assigneeId: data.assigneeId === '' ? null : data.assigneeId,
-      dueDate: data.dueDate === '' ? null : data.dueDate
-    }
-    await onSubmit(submittedData)
+    await onSubmit(data)
   }
 
   const submitting = isLoading || isSubmitting || isLoadingMembers
@@ -184,6 +201,116 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             role="alert"
           >
             {errors.dueDate.message}
+          </Text>
+        )}
+      </div>
+
+      <div className={styles.formField}>
+        <Label htmlFor="taskLabelsTrigger" required>
+          ラベル
+        </Label>
+        <Controller
+          name="labels" // フィールド名は 'labels'
+          control={control}
+          render={({ field, fieldState }) => {
+            // field.value は string[]
+            const selectedLabels = field.value ?? [] // null/undefined チェック
+            return (
+              <PopoverRoot>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    id="taskLabelsTrigger"
+                    className={multiSelectStyles.triggerButton} // スタイル適用
+                    disabled={submitting}
+                    aria-invalid={!!fieldState.error}
+                    aria-describedby={
+                      fieldState.error ? 'taskLabels-error' : undefined
+                    }
+                  >
+                    <span className={multiSelectStyles.triggerValue}>
+                      {/* ★ field.value (配列) を直接 map して Badge を表示 */}
+                      {selectedLabels.length > 0 ? (
+                        selectedLabels.map((label) => (
+                          <Badge
+                            key={label}
+                            className={multiSelectStyles.triggerBadge}
+                          >
+                            {label}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className={multiSelectStyles.placeholder}>
+                          ラベルを選択...
+                        </span>
+                      )}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={multiSelectStyles.triggerIcon}
+                    />
+                  </button>
+                </PopoverTrigger>
+                <PopoverPortal>
+                  <PopoverContent
+                    className={multiSelectStyles.popoverContent} // スタイル適用
+                    sideOffset={5}
+                    align="start"
+                  >
+                    {AVAILABLE_LABELS.map((labelOption) => (
+                      <div
+                        key={labelOption}
+                        className={multiSelectStyles.checkboxItem}
+                      >
+                        <CheckboxPrimitive.Root
+                          id={`label-${labelOption}`}
+                          // ★ field.value (配列) に含まれるかで checked を判断
+                          checked={selectedLabels.includes(labelOption)}
+                          onCheckedChange={(checked) => {
+                            const currentValues = selectedLabels // 現在の配列
+                            let newValues: string[]
+                            if (checked === true) {
+                              newValues = [...currentValues, labelOption]
+                            } else {
+                              newValues = currentValues.filter(
+                                (v) => v !== labelOption
+                              )
+                            }
+                            // ★ 更新された配列をそのまま onChange に渡す
+                            field.onChange(newValues)
+                          }}
+                          className={multiSelectStyles.checkboxRoot} // スタイル適用
+                        >
+                          <CheckboxPrimitive.Indicator
+                            className={multiSelectStyles.checkboxIndicator}
+                          >
+                            <Check size={12} strokeWidth={3} />
+                          </CheckboxPrimitive.Indicator>
+                        </CheckboxPrimitive.Root>
+                        <Label
+                          htmlFor={`label-${labelOption}`}
+                          className={multiSelectStyles.checkboxLabel}
+                        >
+                          {labelOption}
+                        </Label>
+                      </div>
+                    ))}
+                  </PopoverContent>
+                </PopoverPortal>
+              </PopoverRoot>
+            )
+          }}
+        />
+        {errors.labels && (
+          <Text
+            id="taskLabels-error"
+            fontSize="sm"
+            color="error"
+            className={styles.errorMessage}
+            role="alert"
+          >
+            {/* 配列のエラーメッセージ表示 */}
+            {errors.labels.message}
           </Text>
         )}
       </div>

@@ -162,3 +162,10 @@ export const editButton = style({
     backgroundColor: `color-mix(in srgb, ${vars.color.primary} 10%, transparent 90%)`
   }
 })
+
+export const labelsWrapper = style({
+  display: 'flex',
+  flexWrap: 'wrap', // ラベルが複数ある場合に折り返す
+  gap: vars.space[1], // ラベル間の小さなスペース (4px)
+  marginTop: vars.space[1] // タスク名との間のスペース
+})

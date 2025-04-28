@@ -12,12 +12,14 @@ import type {
 
 // インメモリでタスクデータを保持 (モック用)
 let mockTasks: Task[] = [
+  // ★ labels プロパティを追加
   {
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcde0',
     name: '牛乳を買う',
     assigneeId: null,
     dueDate: '2025-04-22',
     isCompleted: false,
+    labels: ['買い物', '家事'],
     createdAt: '2025-04-20T10:00:00Z',
     updatedAt: '2025-04-20T10:00:00Z'
   },
@@ -27,6 +29,7 @@ let mockTasks: Task[] = [
     assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210',
     dueDate: '2025-04-25',
     isCompleted: false,
+    labels: ['仕事', '重要'],
     createdAt: '2025-04-19T14:30:00Z',
     updatedAt: '2025-04-19T14:30:00Z'
   },
@@ -36,17 +39,19 @@ let mockTasks: Task[] = [
     assigneeId: null,
     dueDate: null,
     isCompleted: true,
+    labels: ['仕事'],
     createdAt: '2025-04-18T09:00:00Z',
     updatedAt: '2025-04-19T11:00:00Z'
   },
-  // ★ ページネーション確認用にダミーデータを増やす (例)
   ...Array.from({ length: 25 }, (_, i) => ({
     id: crypto.randomUUID(),
     name: `ダミータスク ${i + 1}`,
-    assigneeId: i % 3 === 0 ? 'f0e9d8c7-b6a5-4321-fedc-ba9876543210' : null, // 3つに1つ担当者を割り当て
+    assigneeId: i % 3 === 0 ? 'f0e9d8c7-b6a5-4321-fedc-ba9876543210' : null,
     dueDate:
-      i % 4 === 0 ? null : new Date(2025, 4, 1 + i).toISOString().split('T')[0], // 4つに1つ期限日なし
-    isCompleted: i % 5 === 0, // 5つに1つ完了済み
+      i % 4 === 0 ? null : new Date(2025, 4, 1 + i).toISOString().split('T')[0],
+    isCompleted: i % 5 === 0,
+    // ★ ダミーデータにも labels を追加
+    labels: i % 2 === 0 ? ['個人'] : ['家事', `タスク${i}`],
     createdAt: new Date(2025, 3, 20 + i).toISOString(),
     updatedAt: new Date().toISOString()
   }))
@@ -191,6 +196,7 @@ export const handlers = [
       assigneeId: newTaskInput.assigneeId ?? null,
       dueDate: newTaskInput.dueDate ?? null,
       isCompleted: false, // デフォルトは未完了
+      labels: newTaskInput.labels,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -237,6 +243,7 @@ export const handlers = [
       assigneeId: putData.assigneeId ?? null, // リクエストになければnull
       dueDate: putData.dueDate ?? null, // リクエストになければnull
       isCompleted: putData.isCompleted,
+      labels: putData.labels,
       createdAt: originalTask.createdAt, // 作成日時は維持
       updatedAt: new Date().toISOString() // 更新日時を更新
     }

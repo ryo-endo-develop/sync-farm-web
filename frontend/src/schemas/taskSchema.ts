@@ -13,6 +13,7 @@ export const TaskSchema = z.object({
       message: '日付はYYYY-MM-DD形式で入力してください。'
     })
     .nullable(),
+  labels: z.array(z.string()),
   isCompleted: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
@@ -40,7 +41,10 @@ export const CreateTaskFormSchema = z.object({
     })
     .nullable()
     .optional()
-    .or(z.literal(''))
+    .or(z.literal('')),
+  labels: z
+    .array(z.string())
+    .min(1, { message: 'ラベルを少なくとも1つ選択してください。' })
   // .transform(val => val === '' ? null : val), // 送信前に空文字列を null に変換する場合
 })
 
@@ -66,7 +70,10 @@ export const PutTaskFormSchema = z.object({
     .nullable()
     .optional()
     .or(z.literal('')),
-  isCompleted: z.boolean() // PUT では完了状態も必須
+  isCompleted: z.boolean(),
+  labels: z
+    .array(z.string())
+    .min(1, { message: 'ラベルを少なくとも1つ選択してください。' })
 })
 export type PutTaskFormData = z.infer<typeof PutTaskFormSchema>
 
@@ -75,16 +82,19 @@ export type PutTaskFormData = z.infer<typeof PutTaskFormSchema>
 
 // API の PUT リクエストボディ用スキーマ
 export const PutTaskInputSchema = PutTaskFormSchema.transform((data) => ({
-  ...data,
-  assigneeId: data.assigneeId === '' ? null : data.assigneeId, // 空文字列を null に
-  dueDate: data.dueDate === '' ? null : data.dueDate // 空文字列を null に
+  name: data.name,
+  assigneeId: data.assigneeId === '' ? null : data.assigneeId,
+  dueDate: data.dueDate === '' ? null : data.dueDate,
+  isCompleted: data.isCompleted,
+  labels: data.labels
 }))
 export type PutTaskInput = z.infer<typeof PutTaskInputSchema>
 
 // API の POST リクエストボディ用スキーマ
 export const CreateTaskInputSchema = CreateTaskFormSchema.transform((data) => ({
-  name: data.name, // name は必須
-  assigneeId: data.assigneeId === '' ? null : data.assigneeId, // 空文字列を null に
-  dueDate: data.dueDate === '' ? null : data.dueDate // 空文字列を null に
+  name: data.name,
+  assigneeId: data.assigneeId === '' ? null : data.assigneeId,
+  dueDate: data.dueDate === '' ? null : data.dueDate,
+  labels: data.labels
 }))
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>

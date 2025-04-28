@@ -22,5 +22,9 @@ export type PutTaskInput = {
      * 完了状態フラグ (必須)
      */
     isCompleted: boolean;
+    /**
+     * 更新後のラベル配列 (既存のラベルはこれで上書きされる)
+     */
+    labels: Array<string>;
 };
 

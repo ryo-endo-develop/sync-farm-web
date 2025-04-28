@@ -106,6 +106,12 @@ components:
           type: boolean
           description: 完了状態フラグ
           example: false
+        labels:
+          type: array
+          items:
+            type: string
+          description: タスクに付与されたラベルの配列
+          example: ["家事", "買い物"]
         createdAt:
           type: string
           format: date-time
@@ -122,8 +128,80 @@ components:
         - id
         - name
         - isCompleted
+        - labels
         - createdAt
         - updatedAt
+
+    # POST /tasks のリクエストボディ (IDは含まない)
+    CreateTaskInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: タスク名 (必須)
+          example: '新しいタスク'
+          minLength: 1 # バリデーション例
+          maxLength: 100
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 担当者のユーザーID (null許容)
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: 期限日 (YYYY-MM-DD, null許容)
+          # pattern: '^\d{4}-\d{2}-\d{2}$' # 正規表現でのバリデーション例
+        labels:
+          type: array
+          items:
+            type: string
+          description: 新規作成時に付与するラベルの配列 (任意)
+          example: ["重要"]
+          minItems: 1
+      required:
+        - name
+        - labels
+
+    # PUT /tasks/{taskId} のリクエストボディ
+    PutTaskInput:
+      type: object
+      description: 更新後のタスクの完全な状態 (id, createdAt, updatedAtを除く)
+      properties:
+        name:
+          type: string
+          description: タスク名 (必須)
+          example: '更新されたタスク名'
+          minLength: 1
+          maxLength: 100
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: 担当者のユーザーID (null許容)
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: 期限日 (YYYY-MM-DD, null許容)
+        isCompleted:
+          type: boolean
+          description: 完了状態フラグ (必須)
+          example: true
+        labels:
+          type: array
+          items:
+            type: string
+          description: 更新後のラベル配列 (既存のラベルはこれで上書きされる)
+          example: ["家事"]
+          minItems: 1
+      required:
+        - name
+        - isCompleted
+        - labels
+        # assigneeId, dueDate は nullable なので必須ではない
+
 
     # --- User Schemas ---
     User:
@@ -162,62 +240,6 @@ components:
         - name
         - createdAt
         - updatedAt
-
-    # POST /tasks のリクエストボディ (IDは含まない)
-    CreateTaskInput:
-      type: object
-      properties:
-        name:
-          type: string
-          description: タスク名 (必須)
-          example: '新しいタスク'
-          minLength: 1 # バリデーション例
-          maxLength: 100
-        assigneeId:
-          type: string
-          format: uuid
-          nullable: true
-          description: 担当者のユーザーID (null許容)
-        dueDate:
-          type: string
-          format: date
-          nullable: true
-          description: 期限日 (YYYY-MM-DD, null許容)
-          # pattern: '^\d{4}-\d{2}-\d{2}$' # 正規表現でのバリデーション例
-      required:
-        - name
-
-    # PUT /tasks/{taskId} のリクエストボディ
-    PutTaskInput:
-      type: object
-      description: 更新後のタスクの完全な状態 (id, createdAt, updatedAtを除く)
-      properties:
-        name:
-          type: string
-          description: タスク名 (必須)
-          example: '更新されたタスク名'
-          minLength: 1
-          maxLength: 100
-        assigneeId:
-          type: string
-          format: uuid
-          nullable: true
-          description: 担当者のユーザーID (null許容)
-        dueDate:
-          type: string
-          format: date
-          nullable: true
-          description: 期限日 (YYYY-MM-DD, null許容)
-        isCompleted:
-          type: boolean
-          description: 完了状態フラグ (必須)
-          example: true
-      required:
-        - name
-        - isCompleted
-        # assigneeId, dueDate は nullable なので必須ではない
-
-    # --- Common Error Schema ---
 
   parameters:
     TaskIdParam:

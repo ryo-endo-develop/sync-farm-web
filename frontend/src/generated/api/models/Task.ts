@@ -24,6 +24,10 @@ export type Task = {
      */
     isCompleted: boolean;
     /**
+     * タスクに付与されたラベルの配列
+     */
+    labels: Array<string>;
+    /**
      * 作成日時
      */
     readonly createdAt: string;

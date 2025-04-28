@@ -15,5 +15,9 @@ export type CreateTaskInput = {
      * 期限日 (YYYY-MM-DD, null許容)
      */
     dueDate?: string | null;
+    /**
+     * 新規作成時に付与するラベルの配列 (任意)
+     */
+    labels: Array<string>;
 };
 

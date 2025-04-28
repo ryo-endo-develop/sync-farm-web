@@ -15,8 +15,8 @@ import React, { useMemo, useState } from 'react'
 import { Task } from '../../generated/api'
 import {
   CreateTaskFormData,
-  CreateTaskInput,
-  PutTaskInput
+  CreateTaskInputSchema,
+  PutTaskInputSchema
 } from '../../schemas/taskSchema'
 import {
   useAddTaskMutation,
@@ -106,13 +106,8 @@ const TaskListPage: React.FC = () => {
 
   // 新規追加フォーム送信
   const handleAddFormSubmit = async (data: CreateTaskFormData) => {
-    const submitData: CreateTaskInput = {
-      // ★ CreateTaskInput に変換
-      name: data.name,
-      assigneeId: data.assigneeId === '' ? null : data.assigneeId,
-      dueDate: data.dueDate === '' ? null : data.dueDate
-    }
     try {
+      const submitData = CreateTaskInputSchema.parse(data)
       await addTask(submitData).unwrap()
       setIsAddModalOpen(false)
     } catch (err) {
@@ -130,18 +125,14 @@ const TaskListPage: React.FC = () => {
   const handleEditFormSubmit = async (data: CreateTaskFormData) => {
     if (!editingTaskId) return // editingTaskId がなければ何もしない
 
-    // CreateTaskFormData を PutTaskInput 形式に変換
-    const putData: PutTaskInput = {
-      name: data.name,
-      assigneeId: data.assigneeId === '' ? null : data.assigneeId,
-      dueDate: data.dueDate === '' ? null : data.dueDate,
-      // isCompleted は編集フォームに含まれていないため、現在の値を使う必要がある
-      // もし TaskForm で isCompleted も編集できるようにする場合は、スキーマとフォームの修正が必要
-      isCompleted:
-        tasks?.find((t) => t.id === editingTaskId)?.isCompleted ?? false // 現在の値を取得
-    }
+    const currentTask = tasks?.find((t) => t.id === editingTaskId)
+    if (!currentTask) return // 対象タスクが見つからない場合
 
     try {
+      const putData = PutTaskInputSchema.parse({
+        ...data,
+        isCompleted: currentTask.isCompleted // フォームにないので現在の値を使う
+      })
       await updateTask({ taskId: editingTaskId, body: putData }).unwrap()
       console.log('タスク更新成功')
       setIsEditModalOpen(false) // 成功したらモーダルを閉じる
@@ -181,12 +172,13 @@ const TaskListPage: React.FC = () => {
     if (!editingTaskId || !tasks) return undefined
     const task = tasks.find((t) => t.id === editingTaskId)
     if (!task) return undefined
-    // TaskForm の initialValues 形式に変換 (null を空文字に)
+    // TaskForm の initialValues 形式に変換
     return {
       name: task.name,
       assigneeId: task.assigneeId ?? '',
-      dueDate: task.dueDate ?? ''
-      // isCompleted は TaskForm の defaultValues にないので含めない
+      dueDate: task.dueDate ?? '',
+      // ★ labels 配列をカンマ区切り文字列に変換
+      labels: Array.isArray(task.labels) ? task.labels : []
     }
   }, [editingTaskId, tasks])
 

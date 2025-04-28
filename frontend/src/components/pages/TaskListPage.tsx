@@ -179,7 +179,9 @@ const TaskListPage: React.FC = () => {
         </Dialog.Root>
 
         <Button
-          onClick={() => refetch()}
+          onClick={() => {
+            void refetch()
+          }}
           variant="secondary"
           disabled={isLoading}
         >

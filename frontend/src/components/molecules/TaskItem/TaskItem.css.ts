@@ -1,7 +1,7 @@
 import { style, styleVariants } from '@vanilla-extract/css'
 import { recipe } from '@vanilla-extract/recipes'
 
-import { vars } from '../../../styles/theme.css'
+import { breakpoints, vars } from '../../../styles/theme.css'
 
 export const container = recipe({
   base: {
@@ -20,6 +20,14 @@ export const container = recipe({
     // ホバー時の背景色 (任意)
     ':hover': {
       backgroundColor: `color-mix(in srgb, ${vars.color.primary} 5%, ${vars.color.surface} 95%)`
+    },
+
+    '@media': {
+      [breakpoints.sp]: {
+        // ★ SP サイズではパディングとギャップを狭くする
+        padding: `${vars.space[2]} ${vars.space[3]}`, // 例: 縦8px, 横12px
+        gap: vars.space[2] // 例: 8px
+      }
     }
   },
   variants: {
@@ -61,7 +69,14 @@ export const taskName = recipe({
     overflow: 'hidden', // はみ出しを隠す
     textOverflow: 'ellipsis', // 省略記号 (...)
     transition: 'color 0.2s ease-out, text-decoration 0.2s ease-out',
-    lineHeight: vars.lineHeight.tight // 行間を少し詰める
+    lineHeight: vars.lineHeight.tight, // 行間を少し詰める
+
+    '@media': {
+      [breakpoints.sp]: {
+        // ★ SP サイズではフォントサイズを少し小さくする (任意)
+        fontSize: vars.fontSize.sm // 例: 14px
+      }
+    }
   },
   variants: {
     isCompleted: {
@@ -82,7 +97,16 @@ export const details = style({
   alignItems: 'center',
   gap: vars.space[3], // アバターと期限日の間隔 (12px)
   fontSize: vars.fontSize.sm, // 小さめのフォントサイズ
-  color: vars.color.textSecondary // 薄めのテキスト色
+  color: vars.color.textSecondary, // 薄めのテキスト色
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズではギャップを狭くする
+      gap: vars.space[2] // 例: 8px
+      // ★ SP サイズではフォントサイズをさらに小さくする (任意)
+      // fontSize: vars.fontSize.xs, // 例: 12px
+    }
+  }
 })
 
 // 期限日テキストのスタイルバリアント
@@ -108,7 +132,17 @@ export const actions = style({
   display: 'flex',
   alignItems: 'center',
   gap: vars.space[1], // ボタン間の隙間
-  flexShrink: 0
+  flexShrink: 0,
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズではギャップをなくすか、さらに狭くする (任意)
+      // gap: 0,
+      // ★ SP ではボタンを縦に並べるなどのレイアウト変更も検討可能
+      // flexDirection: 'column',
+      // alignItems: 'flex-end',
+    }
+  }
 })
 
 // (オプション) 削除ボタンの色などを調整する場合

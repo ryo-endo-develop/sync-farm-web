@@ -2,52 +2,45 @@ import { style } from '@vanilla-extract/css'
 
 import { breakpoints, vars } from '../../styles/theme.css'
 
-// AppLayout 全体を囲む div
 export const layout = style({
   display: 'flex',
-  flexDirection: 'column', // Header が上、残りが下
-  minHeight: '100vh', // 最低でも画面全体の高さに
-  backgroundColor: vars.color.background // 全体の背景色
+  flexDirection: 'column',
+  minHeight: '100vh',
+  backgroundColor: vars.color.background
 })
 
-// Header を除く、ナビゲーションとメインコンテンツを囲むコンテナ
 export const container = style({
   display: 'flex',
-  flexGrow: 1, // Header 以外の残りの高さをすべて使う
-  '@media': {
-    // SP ではナビゲーションを非表示にする (後でドロワーにする想定)
-    [breakpoints.sp]: {
-      // display: 'block', // または flex のまま mainContent のみ表示
-    }
-  }
+  flexGrow: 1
 })
 
-// サイドナビゲーション領域 (今はプレースホルダー用)
 export const navPlaceholder = style({
-  width: '240px', // PC でのナビゲーション幅 (例)
-  backgroundColor: vars.color.surface, // ナビゲーションの背景色
-  borderRight: `1px solid ${vars.color.border}`, // 右側に境界線
-  flexShrink: 0, // コンテンツが増えても縮まないように
+  width: '240px',
+  backgroundColor: vars.color.surface,
+  borderRight: `1px solid ${vars.color.border}`,
+  flexShrink: 0,
   padding: vars.space[4],
-  display: 'block', // デフォルトで表示
+  display: 'block',
 
   '@media': {
     [breakpoints.tablet]: {
-      width: '80px' // Tablet ではアイコンのみ表示を想定した幅 (例)
-      // アイコンのみにする場合は内部のテキストを隠すなどの工夫が必要
+      width: '80px'
     },
     [breakpoints.sp]: {
-      display: 'none' // SP では非表示
+      display: 'none' // SP では非表示 (変更なし)
     }
   }
 })
 
-// メインコンテンツ領域 (children が表示される場所)
 export const mainContent = style({
-  flexGrow: 1, // 残りの幅をすべて使う
-  padding: vars.space[6], // コンテンツ周りの余白 (24px)
-  overflowY: 'auto' // 内容がはみ出た場合にスクロール
-  // 必要に応じて最大幅などを設定
-  // maxWidth: '1200px',
-  // margin: '0 auto', // 中央揃えにする場合
+  flexGrow: 1,
+  padding: vars.space[6], // デフォルトのパディング (24px)
+  overflowY: 'auto',
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズではパディングを狭くする (例: 16px)
+      padding: vars.space[4]
+    }
+  }
 })

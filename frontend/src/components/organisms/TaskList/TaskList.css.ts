@@ -1,44 +1,64 @@
 import { style } from '@vanilla-extract/css'
 
-import { vars } from '../../../styles/theme.css'
+import { breakpoints,vars } from '../../../styles/theme.css'
 
-// ul 要素に適用するスタイル
 export const list = style({
-  listStyle: 'none', // リストマーカーを消す
-  padding: 0, // デフォルトのパディングを削除
-  margin: 0, // デフォルトのマージンを削除
-  marginTop: vars.space[4], // 上にスペースを追加 (16px)
-  border: `1px solid ${vars.color.border}`, // リスト全体を囲むボーダー (任意)
-  borderRadius: vars.borderRadius.lg, // 角丸 (大) (任意)
-  backgroundColor: vars.color.surface, // 背景色 (任意、Item と同じでも良い)
-  overflow: 'hidden' // borderRadius を効かせるため (任意)
+  listStyle: 'none',
+  padding: 0,
+  margin: 0,
+  marginTop: vars.space[4], // デフォルトの上のマージン (16px)
+  border: `1px solid ${vars.color.border}`,
+  borderRadius: vars.borderRadius.lg,
+  backgroundColor: vars.color.surface,
+  overflow: 'hidden',
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズでは上のマージンを少し減らす (例: 12px)
+      marginTop: vars.space[3]
+      // ★ SP ではボーダーや角丸をなくしてスッキリさせる (任意)
+      // border: 'none',
+      // borderRadius: 0,
+      // backgroundColor: 'transparent',
+    }
+  }
 })
 
-// listItem スタイルは TaskItem の container で管理するため不要になることが多い
-// export const listItem = style({ ... });
-
-// ローディング表示のスタイル
 export const loading = style({
-  padding: vars.space[6], // 十分なパディング
+  padding: vars.space[6], // デフォルト (24px)
   textAlign: 'center',
   color: vars.color.textSecondary,
-  fontSize: vars.fontSize.md
+  fontSize: vars.fontSize.md,
+  '@media': {
+    [breakpoints.sp]: {
+      padding: vars.space[4] // SP ではパディングを減らす (16px)
+    }
+  }
 })
 
-// エラー表示のスタイル
 export const error = style({
-  padding: vars.space[4], // パディング
-  margin: `${vars.space[4]} 0`, // 上下マージン
-  color: vars.color.error, // エラーテキスト色
-  border: `1px solid ${vars.color.error}`, // エラーボーダー
-  borderRadius: vars.borderRadius.md, // 角丸
-  backgroundColor: `color-mix(in srgb, ${vars.color.error} 10%, transparent 90%)` // 薄いエラー背景色
+  padding: vars.space[4], // デフォルト (16px)
+  margin: `${vars.space[4]} 0`,
+  color: vars.color.error,
+  border: `1px solid ${vars.color.error}`,
+  borderRadius: vars.borderRadius.md,
+  backgroundColor: `color-mix(in srgb, ${vars.color.error} 10%, transparent 90%)`,
+  '@media': {
+    [breakpoints.sp]: {
+      padding: vars.space[3], // SP ではパディングを減らす (12px)
+      margin: `${vars.space[3]} 0`
+    }
+  }
 })
 
-// タスクが空の場合の表示スタイル
 export const empty = style({
-  padding: vars.space[6], // 十分なパディング
+  padding: vars.space[6], // デフォルト (24px)
   textAlign: 'center',
   color: vars.color.textSecondary,
-  fontSize: vars.fontSize.md
+  fontSize: vars.fontSize.md,
+  '@media': {
+    [breakpoints.sp]: {
+      padding: vars.space[4] // SP ではパディングを減らす (16px)
+    }
+  }
 })

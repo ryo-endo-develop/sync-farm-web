@@ -5,37 +5,50 @@ import { breakpoints,vars } from '../../../styles/theme.css'
 export const header = style({
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between', // 要素を左右に配置
-  padding: `0 ${vars.space[4]}`, // 左右のパディング (16px)
-  height: '60px', // ヘッダーの高さ (例)
-  backgroundColor: vars.color.surface, // 背景色
-  borderBottom: `1px solid ${vars.color.border}`, // 下線
-  position: 'sticky', // スクロールしても上部に固定 (任意)
+  justifyContent: 'space-between',
+  padding: `0 ${vars.space[4]}`, // デフォルトの左右パディング (16px)
+  height: '60px',
+  backgroundColor: vars.color.surface,
+  borderBottom: `1px solid ${vars.color.border}`,
+  position: 'sticky',
   top: 0,
-  zIndex: 10 // 他の要素より手前に表示
+  zIndex: 10,
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズでは左右パディングを少し狭くする (例: 12px)
+      padding: `0 ${vars.space[3]}`
+    }
+  }
 })
 
 export const leftSection = style({
   display: 'flex',
   alignItems: 'center',
-  gap: vars.space[4] // ロゴとタイトルの間隔
+  gap: vars.space[4], // デフォルトのギャップ (16px)
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズではギャップを狭くする (例: 8px)
+      gap: vars.space[2]
+    }
+  }
 })
 
 export const logo = style({
   fontSize: vars.fontSize.lg,
   fontWeight: vars.fontWeight.bold,
-  color: vars.color.primary, // ロゴの色
-  textDecoration: 'none' // Link の場合の下線消し
+  color: vars.color.primary,
+  textDecoration: 'none'
 })
 
 export const pageTitle = style({
   fontSize: vars.fontSize.lg,
   fontWeight: vars.fontWeight.medium,
   color: vars.color.textPrimary,
-  display: 'none', // デフォルト (SP) では隠す
+  display: 'none',
   '@media': {
     [breakpoints.tablet]: {
-      // Tablet 以上で表示
       display: 'block'
     }
   }
@@ -44,14 +57,20 @@ export const pageTitle = style({
 export const rightSection = style({
   display: 'flex',
   alignItems: 'center',
-  gap: vars.space[3] // アイコンとユーザーメニューの間隔
+  gap: vars.space[3], // デフォルトのギャップ (12px)
+
+  '@media': {
+    [breakpoints.sp]: {
+      // ★ SP サイズではギャップを狭くする (例: 8px)
+      gap: vars.space[2]
+    }
+  }
 })
 
 export const hamburgerMenu = style({
   display: 'block',
   '@media': {
     [breakpoints.tablet]: {
-      // Tablet 以上で非表示
       display: 'none'
     }
   }

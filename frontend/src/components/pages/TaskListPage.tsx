@@ -28,36 +28,82 @@ import * as dialogStyles from '../../styles/AlertDialog.css'
 import * as modalStyles from '../../styles/Modal.css'
 import { vars } from '../../styles/theme.css'
 import { Button } from '../atoms/Button/Button'
+import { Checkbox } from '../atoms/Checkbox/Checkbox'
+import { Label } from '../atoms/Label/Label'
+import { Select } from '../atoms/Select/Select'
+import { SelectOption } from '../atoms/Select/Select.types'
+import { Pagination } from '../molecules/Pagenation/Pagenation'
 import { TaskForm } from '../organisms/TaskForm/TaskForm'
 import { TaskFormInitialValues } from '../organisms/TaskForm/TaskForm.types'
 import { TaskList } from '../organisms/TaskList/TaskList'
 
+const CURRENT_USER_ID = 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+type SortOptionValue = 'createdAt_desc' | 'dueDate_asc' | 'dueDate_desc'
+const DEFAULT_LIMIT = 10
+
 const TaskListPage: React.FC = () => {
-  // API フック
-  // RTK Query フックを使ってタスク一覧を取得
-  // pollingInterval を設定すると定期的に再取得 (例: 5分ごと)
-  const {
-    data: tasks,
-    isLoading,
-    isError,
-    error,
-    refetch
-  } = useGetTasksQuery(undefined, {
-    // pollingInterval: 300000, // 5分 = 300000ms
-    // refetchOnMountOrArgChange: true, // マウント時や引数変更時に再取得 (デフォルトtrue)
-  })
   const [addTask, { isLoading: isAddingTask }] = useAddTaskMutation()
   const [updateTask, { isLoading: isUpdatingTask }] = useUpdateTaskMutation()
   const [deleteTask, { isLoading: isDeletingTask }] = useDeleteTaskMutation()
 
   // --- State 管理 ---
+  const [currentPage, setCurrentPage] = useState(1)
+  const [limit] = useState(DEFAULT_LIMIT)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [isAlertOpen, setIsAlertOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
+  // フィルターとソート
+  const [showOnlyMyTasks, setShowOnlyMyTasks] = useState(false)
+  const [sortBy, setSortBy] = useState<SortOptionValue>('createdAt_desc')
+
+  // --- API フック ---
+  // RTK Query フックを使ってタスク一覧を取得
+  // pollingInterval を設定すると定期的に再取得 (例: 5分ごと)
+  const queryParams = useMemo(
+    () => ({
+      assigneeId: showOnlyMyTasks ? 'me' : undefined, // ★ 'me' を渡す (バックエンドで解釈)
+      // isCompleted: undefined, // 必要なら完了フィルターも追加
+      sort: sortBy,
+      page: currentPage,
+      limit: limit
+    }),
+    [showOnlyMyTasks, sortBy, currentPage, limit]
+  )
+  const {
+    data: paginatedResponse,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch
+  } = useGetTasksQuery(queryParams, {
+    // pollingInterval: 300000, // 5分 = 300000ms
+    // refetchOnMountOrArgChange: true, // マウント時や引数変更時に再取得 (デフォルトtrue)
+  })
+
+  const tasks = paginatedResponse?.data
+  const paginationMeta = paginatedResponse?.meta
 
   // --- イベントハンドラー ---
+  // フィルター/ソート変更時にページを1に戻す
+  const handleFilterChange = (checked: boolean) => {
+    setShowOnlyMyTasks(checked)
+    setCurrentPage(1) // ページをリセット
+  }
+  const handleSortChange = (value: SortOptionValue) => {
+    setSortBy(value)
+    setCurrentPage(1) // ページをリセット
+  }
+
+  // ページネーションハンドラー
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage)
+    // ページトップにスクロールするなどの処理を追加しても良い
+    // window.scrollTo(0, 0);
+  }
+
   // 新規追加フォーム送信
   const handleAddFormSubmit = async (data: CreateTaskFormData) => {
     const submitData: CreateTaskInput = {
@@ -106,7 +152,7 @@ const TaskListPage: React.FC = () => {
     }
   }
 
-  // ★ 削除ボタンクリック時の処理 (TaskListから渡される)
+  // 削除ボタンクリック時の処理 (TaskListから渡される)
   const handleDeleteClick = (taskId: string) => {
     const task = tasks?.find((t) => t.id === taskId)
     if (task) {
@@ -115,7 +161,7 @@ const TaskListPage: React.FC = () => {
     }
   }
 
-  // ★ 確認ダイアログで「削除」が押されたときの処理
+  // 確認ダイアログで「削除」が押されたときの処理
   const handleConfirmDelete = async () => {
     if (!taskToDelete) return
     try {
@@ -130,7 +176,7 @@ const TaskListPage: React.FC = () => {
     }
   }
 
-  // ★ 編集対象のタスクデータをメモ化して取得
+  // 編集対象のタスクデータをメモ化して取得
   const editingTaskData = useMemo((): TaskFormInitialValues | undefined => {
     if (!editingTaskId || !tasks) return undefined
     const task = tasks.find((t) => t.id === editingTaskId)
@@ -144,9 +190,102 @@ const TaskListPage: React.FC = () => {
     }
   }, [editingTaskId, tasks])
 
+  // フィルターとソートを適用したタスクリストを生成
+  const filteredAndSortedTasks = useMemo(() => {
+    if (!tasks) return [] // 元データがなければ空配列
+
+    let processedTasks = [...tasks] // 元の配列をコピーして操作
+
+    // 1. フィルター適用
+    if (showOnlyMyTasks) {
+      processedTasks = processedTasks.filter(
+        (task) => task.assigneeId === CURRENT_USER_ID
+      )
+    }
+    // TODO: 期限切れ除外フィルターもここに追加可能
+
+    // 2. ソート適用
+    processedTasks.sort((a, b) => {
+      switch (sortBy) {
+        case 'dueDate_asc':
+          // null を最後にする場合: a が null なら b より後、b が null なら a より後
+          if (a.dueDate == null) return 1
+          if (b.dueDate == null) return -1
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        case 'dueDate_desc':
+          // null を最後にする場合: a が null なら b より後、b が null なら a より後
+          if (a.dueDate == null) return 1
+          if (b.dueDate == null) return -1
+          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+        case 'createdAt_desc':
+        default:
+          // 作成日時は null でないと仮定
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+      }
+    })
+
+    return processedTasks
+  }, [tasks, showOnlyMyTasks, sortBy])
+
+  const sortOptions: SelectOption[] = [
+    { value: 'createdAt_desc', label: '作成日 (新しい順)' },
+    { value: 'dueDate_asc', label: '期限日 (昇順)' },
+    { value: 'dueDate_desc', label: '期限日 (降順)' }
+  ]
+
+  const isLoadingOrFetching = isLoading || isFetching
+
   return (
     <div>
       <h1>タスク一覧</h1>
+
+      {/* --- フィルターとソートコントロール --- */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: vars.space[4],
+          flexWrap: 'wrap',
+          gap: vars.space[3]
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Checkbox
+            id="filter-my-tasks"
+            checked={showOnlyMyTasks}
+            onChange={(e) => handleFilterChange(e.target.checked)}
+            label="自分のタスクのみ表示"
+            disabled={isLoadingOrFetching} // ローディング中は無効化
+          />
+        </div>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: vars.space[2] }}
+        >
+          <Label
+            htmlFor="sort-tasks"
+            style={{
+              marginBottom: 0,
+              marginRight: vars.space[1],
+              flexShrink: 0
+            }}
+          >
+            並び順:
+          </Label>
+          <Select
+            id="sort-tasks"
+            options={sortOptions}
+            value={sortBy}
+            onChange={(e) =>
+              handleSortChange(e.target.value as SortOptionValue)
+            }
+            style={{ minWidth: '180px' }}
+            disabled={isLoadingOrFetching} // ローディング中は無効化
+          />
+        </div>
+      </div>
 
       {/* --- ボタン類 --- */}
       <div
@@ -191,15 +330,24 @@ const TaskListPage: React.FC = () => {
 
       {/* --- タスクリスト --- */}
       <TaskList
-        tasks={tasks}
+        tasks={filteredAndSortedTasks}
         isLoading={isLoading}
         isError={isError}
         error={error}
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}
       />
+      {paginationMeta && (
+        <Pagination
+          currentPage={paginationMeta.currentPage}
+          totalPages={paginationMeta.totalPages}
+          totalItems={paginationMeta.totalItems}
+          onPageChange={handlePageChange}
+          isLoading={isLoadingOrFetching}
+        />
+      )}
 
-      {/* --- ★★★ 編集用モーダル ★★★ --- */}
+      {/* --- 編集用モーダル --- */}
       <Dialog.Root open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         {/* Trigger は TaskItem 内のボタンが担当 */}
         <Dialog.Portal>

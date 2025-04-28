@@ -9,6 +9,10 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { CreateTaskInput } from './models/CreateTaskInput';
 export type { ErrorResponse } from './models/ErrorResponse';
+export type { PaginatedTasksResponse } from './models/PaginatedTasksResponse';
+export type { PaginationLimitParam } from './models/PaginationLimitParam';
+export type { PaginationMeta } from './models/PaginationMeta';
+export type { PaginationPageParam } from './models/PaginationPageParam';
 export type { PutTaskInput } from './models/PutTaskInput';
 export type { SuccessResponse } from './models/SuccessResponse';
 export type { Task } from './models/Task';

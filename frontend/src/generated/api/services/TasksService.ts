@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { CreateTaskInput } from '../models/CreateTaskInput';
+import type { PaginatedTasksResponse } from '../models/PaginatedTasksResponse';
 import type { PutTaskInput } from '../models/PutTaskInput';
 import type { SuccessResponse } from '../models/SuccessResponse';
 import type { Task } from '../models/Task';
@@ -12,26 +13,43 @@ import { request as __request } from '../core/request';
 export class TasksService {
     /**
      * タスク一覧取得
-     * @returns any タスク一覧取得成功
+     * @returns PaginatedTasksResponse タスク一覧取得成功
      * @throws ApiError
      */
     public static getTasks({
-        isCompleted,
+        assigneeId,
+        sort = 'createdAt_desc',
+        page = 1,
+        limit = 20,
     }: {
         /**
-         * 完了状態でフィルタリング (true/false)
+         * 担当者IDでフィルタリング ('me' で自分のタスクを指定可能)
          */
-        isCompleted?: boolean,
-    }): CancelablePromise<(SuccessResponse & {
-        data: Array<Task>;
-    })> {
+        assigneeId?: string,
+        /**
+         * ソート順を指定
+         */
+        sort?: 'createdAt_desc' | 'createdAt_asc' | 'dueDate_asc' | 'dueDate_desc',
+        /**
+         * 表示するページ番号 (1始まり)
+         */
+        page?: number,
+        /**
+         * 1ページあたりのアイテム数
+         */
+        limit?: number,
+    }): CancelablePromise<PaginatedTasksResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/tasks',
             query: {
-                'isCompleted': isCompleted,
+                'assigneeId': assigneeId,
+                'sort': sort,
+                'page': page,
+                'limit': limit,
             },
             errors: {
+                400: `Bad Request (Invalid query parameters)`,
                 500: `Internal Server Error`,
             },
         });

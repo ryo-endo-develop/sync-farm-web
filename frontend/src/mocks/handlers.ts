@@ -3,6 +3,8 @@ import { delay, http, HttpResponse } from 'msw'
 
 import type {
   CreateTaskInput,
+  PaginatedTasksResponse,
+  PaginationMeta,
   PutTaskInput,
   Task,
   User
@@ -22,7 +24,7 @@ let mockTasks: Task[] = [
   {
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcde1',
     name: '請求書を処理する',
-    assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210', // ダミーの担当者ID
+    assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210',
     dueDate: '2025-04-25',
     isCompleted: false,
     createdAt: '2025-04-19T14:30:00Z',
@@ -36,7 +38,18 @@ let mockTasks: Task[] = [
     isCompleted: true,
     createdAt: '2025-04-18T09:00:00Z',
     updatedAt: '2025-04-19T11:00:00Z'
-  }
+  },
+  // ★ ページネーション確認用にダミーデータを増やす (例)
+  ...Array.from({ length: 25 }, (_, i) => ({
+    id: crypto.randomUUID(),
+    name: `ダミータスク ${i + 1}`,
+    assigneeId: i % 3 === 0 ? 'f0e9d8c7-b6a5-4321-fedc-ba9876543210' : null, // 3つに1つ担当者を割り当て
+    dueDate:
+      i % 4 === 0 ? null : new Date(2025, 4, 1 + i).toISOString().split('T')[0], // 4つに1つ期限日なし
+    isCompleted: i % 5 === 0, // 5つに1つ完了済み
+    createdAt: new Date(2025, 3, 20 + i).toISOString(),
+    updatedAt: new Date().toISOString()
+  }))
 ]
 
 let mockUsers: User[] = [
@@ -62,6 +75,8 @@ let mockUsers: User[] = [
 ]
 
 const API_BASE_URL = '/api/v1' // OpenAPIで定義したベースパス
+const DEFAULT_PAGE = 1
+const DEFAULT_LIMIT = 10 // TaskListPage のデフォルトと合わせる
 
 export const handlers = [
   // --- Health Check ---
@@ -76,17 +91,85 @@ export const handlers = [
   http.get(`${API_BASE_URL}/tasks`, async ({ request }) => {
     await delay(300) // 一覧取得は少し遅延させる
     const url = new URL(request.url)
-    const isCompletedParam = url.searchParams.get('isCompleted')
 
-    let resultTasks = mockTasks
+    // --- クエリパラメータを取得 ---
+    const assigneeId = url.searchParams.get('assigneeId')
+    const isCompletedParam = url.searchParams.get('isCompleted')
+    const sort = url.searchParams.get('sort') || 'createdAt_desc' // デフォルトソート
+    const page = parseInt(
+      url.searchParams.get('page') || String(DEFAULT_PAGE),
+      10
+    )
+    const limit = parseInt(
+      url.searchParams.get('limit') || String(DEFAULT_LIMIT),
+      10
+    )
+
+    let processedTasks = [...mockTasks] // コピーして操作
+
+    // --- フィルター適用 ---
+    if (assigneeId) {
+      // 'me' の場合は仮のIDに置き換える (実際のバックエンドでは認証情報から取得)
+      const filterAssigneeId =
+        assigneeId === 'me'
+          ? 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
+          : assigneeId
+      processedTasks = processedTasks.filter(
+        (task) => task.assigneeId === filterAssigneeId
+      )
+    }
     if (isCompletedParam !== null) {
       const filterCompleted = isCompletedParam === 'true'
-      resultTasks = mockTasks.filter(
+      processedTasks = processedTasks.filter(
         (task) => task.isCompleted === filterCompleted
       )
     }
 
-    return HttpResponse.json({ data: resultTasks })
+    // --- ソート適用 ---
+    processedTasks.sort((a, b) => {
+      switch (sort) {
+        case 'dueDate_asc':
+          if (a.dueDate == null) return 1
+          if (b.dueDate == null) return -1
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        case 'dueDate_desc':
+          if (a.dueDate == null) return 1
+          if (b.dueDate == null) return -1
+          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+        case 'createdAt_asc':
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        case 'createdAt_desc':
+        default:
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+      }
+    })
+
+    // --- ページネーション適用 ---
+    const totalItems = processedTasks.length
+    const totalPages = Math.ceil(totalItems / limit)
+    const startIndex = (page - 1) * limit
+    const endIndex = startIndex + limit
+    const paginatedData = processedTasks.slice(startIndex, endIndex)
+
+    // --- ページネーションメタデータを作成 ---
+    const meta: PaginationMeta = {
+      totalItems,
+      totalPages,
+      currentPage: page,
+      limit
+    }
+
+    // --- PaginatedTasksResponse 形式でレスポンスを返す ---
+    const response: PaginatedTasksResponse = {
+      data: paginatedData,
+      meta: meta
+    }
+
+    return HttpResponse.json(response)
   }),
 
   // POST /tasks : 新規タスク作成

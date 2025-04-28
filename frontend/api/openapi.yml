@@ -17,6 +17,64 @@ components:
           # 型は各APIのレスポンス定義で上書き or anyOf/oneOf などで指定
       required:
         - data
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: エラーメッセージ
+          example: '入力内容に誤りがあります。'
+        details:
+          # バリデーションエラー等の詳細を格納 (キーがフィールド名、値がエラーメッセージなど)
+          type: object
+          additionalProperties:
+            type: string # または array of string
+          example:
+            {
+              'name': 'タスク名は必須です。',
+              'dueDate': '日付の形式が正しくありません。'
+            }
+      required:
+        - message
+
+    # --- ページネーション情報を含むレスポンススキーマ ---
+    PaginationMeta:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+          description: 条件に一致する総アイテム数
+          example: 120
+        totalPages:
+          type: integer
+          description: 総ページ数
+          example: 12
+        currentPage:
+          type: integer
+          description: 現在のページ番号 (1始まり)
+          example: 1
+        limit:
+          type: integer
+          description: 1ページあたりのアイテム数
+          example: 10
+      required:
+        - totalItems
+        - totalPages
+        - currentPage
+        - limit
+    PaginatedTasksResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+          description: 現在のページのタスクデータ
+        meta:
+          $ref: '#/components/schemas/PaginationMeta' # ページネーション情報
+      required:
+        - data
+        - meta
 
     # --- Task Schemas ---
     Task:
@@ -160,25 +218,6 @@ components:
         # assigneeId, dueDate は nullable なので必須ではない
 
     # --- Common Error Schema ---
-    ErrorResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          description: エラーメッセージ
-          example: '入力内容に誤りがあります。'
-        details:
-          # バリデーションエラー等の詳細を格納 (キーがフィールド名、値がエラーメッセージなど)
-          type: object
-          additionalProperties:
-            type: string # または array of string
-          example:
-            {
-              'name': 'タスク名は必須です。',
-              'dueDate': '日付の形式が正しくありません。'
-            }
-      required:
-        - message
 
   parameters:
     TaskIdParam:
@@ -189,6 +228,25 @@ components:
       schema:
         type: string
         format: uuid
+    PaginationPageParam:
+      name: page
+      in: query
+      required: false
+      description: 表示するページ番号 (1始まり)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PaginationLimitParam:
+      name: limit
+      in: query
+      required: false
+      description: 1ページあたりのアイテム数
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100 # 上限を設定
+        default: 20 # デフォルト値を設定
 
 paths:
   /health:
@@ -213,13 +271,30 @@ paths:
       summary: タスク一覧取得
       tags: [Tasks]
       parameters:
-        - name: isCompleted
+        # --- ★★★ フィルター用パラメータ ★★★ ---
+        - name: assigneeId
           in: query
           required: false
-          description: 完了状態でフィルタリング (true/false)
+          description: 担当者IDでフィルタリング ('me' で自分のタスクを指定可能)
           schema:
-            type: boolean
-        # Add other query parameters like sort, limit, offset for pagination later
+            type: string
+            example: 'me' # または UUID
+        # --- ★★★ ソート用パラメータ ★★★ ---
+        - name: sort
+          in: query
+          required: false
+          description: ソート順を指定
+          schema:
+            type: string
+            enum: # 許可するソートキーと方向
+              - createdAt_desc # 作成日 (新しい順) - デフォルト
+              - createdAt_asc  # 作成日 (古い順)
+              - dueDate_asc    # 期限日 (昇順)
+              - dueDate_desc   # 期限日 (降順)
+              # - name_asc     # 名前順なども追加可能
+            default: createdAt_desc
+        - $ref: '#/components/parameters/PaginationPageParam'
+        - $ref: '#/components/parameters/PaginationLimitParam'
       responses:
         '200':
           description: タスク一覧取得成功
@@ -227,16 +302,13 @@ paths:
             application/json:
               schema:
                 # SuccessResponseでラップし、dataの中身を定義
-                allOf:
-                  - $ref: '#/components/schemas/SuccessResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Task'
-                    required:
-                      - data
+                $ref: '#/components/schemas/PaginatedTasksResponse'
+        '400': # パラメータ不正などの場合
+          description: Bad Request (Invalid query parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error
           content:

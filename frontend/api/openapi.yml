@@ -112,6 +112,15 @@ components:
             type: string
           description: タスクに付与されたラベルの配列
           example: ["家事", "買い物"]
+        isRecurring:
+          type: boolean
+          description: このタスクが定常タスクかどうか
+          default: false
+        recurrenceRule:
+          type: string
+          description: '繰り返しのルール'
+          nullable: true
+          example: 'daily'
         createdAt:
           type: string
           format: date-time

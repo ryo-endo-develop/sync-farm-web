@@ -50,6 +50,14 @@ export const checkboxWrapper = style({
   flexShrink: 0 // コンテンツが長くても縮まないように
 })
 
+export const contentWrapper = style({
+  flexGrow: 1, // 残りのスペースを埋める
+  display: 'flex',
+  flexDirection: 'column', // メイン情報とラベルを縦に並べる
+  gap: vars.space[1], // メイン情報とラベルの間隔 (4px)
+  minWidth: 0 // text-overflow を効かせるため
+})
+
 // タスク名と詳細情報を含む中央のコンテンツエリア
 export const content = style({
   flexGrow: 1, // 残りのスペースをすべて使う
@@ -57,6 +65,12 @@ export const content = style({
   flexDirection: 'column', // タスク名と詳細を縦に並べる
   gap: vars.space[1], // タスク名と詳細の間のわずかなスペース (4px)
   minWidth: 0 // これがないと flex アイテムが内容に合わせて縮小せず、text-overflow が効かない場合がある
+})
+
+export const mainInfo = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: vars.space[2] // アバター、名前、日付の間のスペース (8px)
 })
 
 // タスク名テキストのスタイル (recipe で完了状態を管理)
@@ -91,22 +105,19 @@ export const taskName = recipe({
   }
 })
 
-// 詳細情報 (担当者、期限日) を表示するエリア
-export const details = style({
-  display: 'flex',
-  alignItems: 'center',
-  gap: vars.space[3], // アバターと期限日の間隔 (12px)
-  fontSize: vars.fontSize.sm, // 小さめのフォントサイズ
-  color: vars.color.textSecondary, // 薄めのテキスト色
+export const avatarWrapper = style({
+  flexShrink: 0
+})
 
-  '@media': {
-    [breakpoints.sp]: {
-      // ★ SP サイズではギャップを狭くする
-      gap: vars.space[2] // 例: 8px
-      // ★ SP サイズではフォントサイズをさらに小さくする (任意)
-      // fontSize: vars.fontSize.xs, // 例: 12px
-    }
-  }
+// 期限日テキストのスタイル
+export const dueDateWrapper = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: vars.space[1],
+  fontSize: vars.fontSize.sm,
+  color: vars.color.textSecondary,
+  flexShrink: 0, // 縮まないように
+  whiteSpace: 'nowrap' // 日付が折り返さないように
 })
 
 // 期限日テキストのスタイルバリアント

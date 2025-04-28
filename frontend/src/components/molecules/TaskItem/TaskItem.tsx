@@ -92,56 +92,57 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         />
       </div>
 
-      {/* タスク名と詳細 */}
-      <div className={styles.content}>
-        {/* タスク名 */}
-        <Text as="span" className={taskNameClassName} title={task.name}>
-          {task.name}
-        </Text>
-
-        {/* ★ ラベル表示エリア */}
-        {task.labels &&
-          task.labels.length > 0 && ( // labels が存在し、空でない場合のみ表示
-            <div className={styles.labelsWrapper}>
-              {task.labels.map((label) => (
-                <Badge
-                  key={label} // ラベル名をキーにする (一意である前提)
-                  colorScheme={getLabelColorScheme(label)} // ラベルに応じて色を決定
-                >
-                  {label}
-                </Badge>
-              ))}
+      {/* コンテンツエリア (メイン情報 + ラベル) */}
+      <div className={styles.contentWrapper}>
+        {/* メイン情報ライン (アバター、名前、日付) */}
+        <div className={styles.mainInfo}>
+          {/* アバター */}
+          <div className={styles.avatarWrapper}>
+            <Avatar
+              initials={assigneeInitials}
+              size="sm" // 小さいサイズ
+              alt={assigneeAltText}
+              // 担当者がいない場合は少し薄く表示する例
+              style={{ opacity: task.assigneeId ? 1 : 0.4 }}
+              title={assigneeAltText} // ツールチップ
+            />
+          </div>
+          {/* タスク名 */}
+          <Text as="span" className={taskNameClassName} title={task.name}>
+            {task.name}
+          </Text>
+          {/* 期限日 (存在する場合のみ表示) */}
+          {task.dueDate && (
+            <div className={styles.dueDateWrapper}>
+              {/* 期限切れスタイルを適用 */}
+              <span
+                className={styles.dueDate[isOverdue ? 'overdue' : 'default']}
+              >
+                {/* カレンダーアイコン */}
+                <Icon
+                  as={CalendarDays}
+                  size="0.9em"
+                  style={{ marginRight: '4px' }}
+                />
+                {formattedDueDate}
+              </span>
             </div>
           )}
-
-        <div className={styles.details}>
-          <Avatar
-            // src={null} // 将来的にユーザー画像URLを渡す
-            initials={assigneeInitials}
-            size="sm" // 小さいサイズ
-            alt={assigneeAltText}
-            // 担当者がいない場合は少し薄く表示する例 (CSSで制御も可)
-            style={{ opacity: task.assigneeId ? 1 : 0.4 }}
-            title={assigneeAltText} // ツールチップ
-          />
-
-          {/* 期限日 */}
-          {task.dueDate && (
-            // 期限切れスタイルを適用 (例)
-            <Text
-              as="span"
-              fontSize="sm"
-              color="textSecondary"
-              className={styles.dueDate[isOverdue ? 'overdue' : 'default']}
-            >
-              <CalendarDays
-                size="0.9em"
-                style={{ marginRight: '4px', verticalAlign: 'middle' }}
-              />
-              {formattedDueDate}
-            </Text>
-          )}
         </div>
+
+        {/* ラベル表示エリア (ラベルが存在する場合のみ表示) */}
+        {task.labels && task.labels.length > 0 && (
+          <div className={styles.labelsWrapper}>
+            {task.labels.map((label) => (
+              <Badge
+                key={label}
+                colorScheme={getLabelColorScheme(label)} // ラベルに応じて色を決定
+              >
+                {label}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={styles.actions}>

@@ -33,13 +33,20 @@ import { Label } from '../atoms/Label/Label'
 import { Select } from '../atoms/Select/Select'
 import { SelectOption } from '../atoms/Select/Select.types'
 import { Pagination } from '../molecules/Pagenation/Pagenation'
+import { RoutineTaskList } from '../organisms/RoutineTaskList/RoutineTaskList'
 import { TaskForm } from '../organisms/TaskForm/TaskForm'
 import { TaskFormInitialValues } from '../organisms/TaskForm/TaskForm.types'
 import { TaskList } from '../organisms/TaskList/TaskList'
 
-const CURRENT_USER_ID = 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
 type SortOptionValue = 'createdAt_desc' | 'dueDate_asc' | 'dueDate_desc'
-const DEFAULT_LIMIT = 10
+const DEFAULT_LIMIT = 5
+
+// ★ 区切り線用のシンプルなスタイル
+const separatorStyle = {
+  border: 'none',
+  borderTop: `1px solid ${vars.color.border}`,
+  margin: `${vars.space[5]} 0` // 上下のマージン
+}
 
 const TaskListPage: React.FC = () => {
   const [addTask, { isLoading: isAddingTask }] = useAddTaskMutation()
@@ -83,8 +90,25 @@ const TaskListPage: React.FC = () => {
     // refetchOnMountOrArgChange: true, // マウント時や引数変更時に再取得 (デフォルトtrue)
   })
 
-  const tasks = paginatedResponse?.data
+  const allTasks = paginatedResponse?.data
   const paginationMeta = paginatedResponse?.meta
+
+  // ★★★ 取得したタスクを定常タスクと通常タスクに分類 ★★★
+  const { todaysRoutines, regularTasks } = useMemo(() => {
+    const routines: Task[] = []
+    const regulars: Task[] = []
+    if (allTasks) {
+      allTasks.forEach((task) => {
+        if (task.isRecurring) {
+          // isRecurring フラグで判断
+          routines.push(task)
+        } else {
+          regulars.push(task)
+        }
+      })
+    }
+    return { todaysRoutines: routines, regularTasks: regulars }
+  }, [allTasks]) // allTasks が変化したら再計算
 
   // --- イベントハンドラー ---
   // フィルター/ソート変更時にページを1に戻す
@@ -125,7 +149,7 @@ const TaskListPage: React.FC = () => {
   const handleEditFormSubmit = async (data: CreateTaskFormData) => {
     if (!editingTaskId) return // editingTaskId がなければ何もしない
 
-    const currentTask = tasks?.find((t) => t.id === editingTaskId)
+    const currentTask = allTasks?.find((t) => t.id === editingTaskId)
     if (!currentTask) return // 対象タスクが見つからない場合
 
     try {
@@ -145,7 +169,7 @@ const TaskListPage: React.FC = () => {
 
   // 削除ボタンクリック時の処理 (TaskListから渡される)
   const handleDeleteClick = (taskId: string) => {
-    const task = tasks?.find((t) => t.id === taskId)
+    const task = allTasks?.find((t) => t.id === taskId)
     if (task) {
       setTaskToDelete(task) // 削除対象情報をセット
       setIsAlertOpen(true) // 確認ダイアログを開く
@@ -169,8 +193,8 @@ const TaskListPage: React.FC = () => {
 
   // 編集対象のタスクデータをメモ化して取得
   const editingTaskData = useMemo((): TaskFormInitialValues | undefined => {
-    if (!editingTaskId || !tasks) return undefined
-    const task = tasks.find((t) => t.id === editingTaskId)
+    if (!editingTaskId || !allTasks) return undefined
+    const task = allTasks.find((t) => t.id === editingTaskId)
     if (!task) return undefined
     // TaskForm の initialValues 形式に変換
     return {
@@ -180,46 +204,7 @@ const TaskListPage: React.FC = () => {
       // ★ labels 配列をカンマ区切り文字列に変換
       labels: Array.isArray(task.labels) ? task.labels : []
     }
-  }, [editingTaskId, tasks])
-
-  // フィルターとソートを適用したタスクリストを生成
-  const filteredAndSortedTasks = useMemo(() => {
-    if (!tasks) return [] // 元データがなければ空配列
-
-    let processedTasks = [...tasks] // 元の配列をコピーして操作
-
-    // 1. フィルター適用
-    if (showOnlyMyTasks) {
-      processedTasks = processedTasks.filter(
-        (task) => task.assigneeId === CURRENT_USER_ID
-      )
-    }
-    // TODO: 期限切れ除外フィルターもここに追加可能
-
-    // 2. ソート適用
-    processedTasks.sort((a, b) => {
-      switch (sortBy) {
-        case 'dueDate_asc':
-          // null を最後にする場合: a が null なら b より後、b が null なら a より後
-          if (a.dueDate == null) return 1
-          if (b.dueDate == null) return -1
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        case 'dueDate_desc':
-          // null を最後にする場合: a が null なら b より後、b が null なら a より後
-          if (a.dueDate == null) return 1
-          if (b.dueDate == null) return -1
-          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-        case 'createdAt_desc':
-        default:
-          // 作成日時は null でないと仮定
-          return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )
-      }
-    })
-
-    return processedTasks
-  }, [tasks, showOnlyMyTasks, sortBy])
+  }, [editingTaskId, allTasks])
 
   const sortOptions: SelectOption[] = [
     { value: 'createdAt_desc', label: '作成日 (新しい順)' },
@@ -320,15 +305,39 @@ const TaskListPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* --- タスクリスト --- */}
-      <TaskList
-        tasks={filteredAndSortedTasks}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        onEdit={handleEditClick}
-        onDelete={handleDeleteClick}
-      />
+      {/* --- ★★★ 今日のルーティン セクション ★★★ --- */}
+      <section>
+        <h2 style={{ fontSize: vars.fontSize.lg, marginBottom: vars.space[2] }}>
+          今日のルーティン
+        </h2>
+        {/* ローディング中も表示しないか、専用スケルトンを用意 */}
+        {!isLoadingOrFetching && <RoutineTaskList tasks={todaysRoutines} />}
+        {/* 初回ローディング中のみスケルトン表示する例 */}
+        {isLoading && !isFetching && <p>ルーティン読み込み中...</p>}
+        {/* エラー表示 */}
+        {isError && !isLoading && (
+          <p style={{ color: vars.color.error }}>ルーティン読込エラー</p>
+        )}
+      </section>
+
+      {/* --- ★★★ 区切り線 ★★★ --- */}
+      <hr style={separatorStyle} />
+
+      {/* --- ★★★ 通常のタスク セクション ★★★ --- */}
+      <section>
+        <h2 style={{ fontSize: vars.fontSize.lg, marginBottom: vars.space[3] }}>
+          {/* フィルター状態に応じてタイトル変更 (任意) */}
+          {showOnlyMyTasks ? '自分のタスク' : '通常のタスク'}
+        </h2>
+        <TaskList
+          tasks={regularTasks} // ★ 通常タスクのみを渡す
+          isLoading={isLoadingOrFetching} // ローディング状態
+          isError={isError}
+          error={error}
+          onEdit={handleEditClick}
+          onDelete={handleDeleteClick}
+        />
+      </section>
       {paginationMeta && (
         <Pagination
           currentPage={paginationMeta.currentPage}

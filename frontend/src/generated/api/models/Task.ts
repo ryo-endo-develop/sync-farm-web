@@ -28,6 +28,14 @@ export type Task = {
      */
     labels: Array<string>;
     /**
+     * このタスクが定常タスクかどうか
+     */
+    isRecurring?: boolean;
+    /**
+     * 繰り返しのルール
+     */
+    recurrenceRule?: string | null;
+    /**
      * 作成日時
      */
     readonly createdAt: string;

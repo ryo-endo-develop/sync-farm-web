@@ -12,7 +12,7 @@ import type {
 
 // インメモリでタスクデータを保持 (モック用)
 let mockTasks: Task[] = [
-  // ★ labels プロパティを追加
+  // 通常タスクの例
   {
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcde0',
     name: '牛乳を買う',
@@ -20,6 +20,8 @@ let mockTasks: Task[] = [
     dueDate: '2025-04-22',
     isCompleted: false,
     labels: ['買い物', '家事'],
+    isRecurring: false,
+    recurrenceRule: null,
     createdAt: '2025-04-20T10:00:00Z',
     updatedAt: '2025-04-20T10:00:00Z'
   },
@@ -30,6 +32,8 @@ let mockTasks: Task[] = [
     dueDate: '2025-04-25',
     isCompleted: false,
     labels: ['仕事', '重要'],
+    isRecurring: false,
+    recurrenceRule: null,
     createdAt: '2025-04-19T14:30:00Z',
     updatedAt: '2025-04-19T14:30:00Z'
   },
@@ -40,9 +44,49 @@ let mockTasks: Task[] = [
     dueDate: null,
     isCompleted: true,
     labels: ['仕事'],
+    isRecurring: false,
+    recurrenceRule: null,
     createdAt: '2025-04-18T09:00:00Z',
     updatedAt: '2025-04-19T11:00:00Z'
   },
+  // 定常タスクの例
+  {
+    id: 'routine-001',
+    name: 'ゴミ捨て (燃えるゴミ)',
+    assigneeId: null,
+    dueDate: null,
+    isCompleted: false,
+    labels: ['家事', 'ルーティン'],
+    isRecurring: true,
+    recurrenceRule: 'weekly:Tue,Fri',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z'
+  },
+  {
+    id: 'routine-002',
+    name: '朝のストレッチ',
+    assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210',
+    dueDate: null,
+    isCompleted: false,
+    labels: ['健康', 'ルーティン'],
+    isRecurring: true,
+    recurrenceRule: 'daily',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z'
+  },
+  {
+    id: 'routine-003',
+    name: '子供の連絡帳チェック',
+    assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210',
+    dueDate: null,
+    isCompleted: true,
+    labels: ['育児', 'ルーティン'],
+    isRecurring: true,
+    recurrenceRule: 'weekdays',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-04-28T08:00:00Z'
+  }, // 今日完了した例
+  // 通常タスクのダミーデータ (isRecurring: false を追加)
   ...Array.from({ length: 25 }, (_, i) => ({
     id: crypto.randomUUID(),
     name: `ダミータスク ${i + 1}`,
@@ -50,8 +94,9 @@ let mockTasks: Task[] = [
     dueDate:
       i % 4 === 0 ? null : new Date(2025, 4, 1 + i).toISOString().split('T')[0],
     isCompleted: i % 5 === 0,
-    // ★ ダミーデータにも labels を追加
-    labels: i % 2 === 0 ? ['個人'] : ['家事', `タスク${i}`],
+    labels: i % 2 === 0 ? ['個人'] : ['プロジェクトA', `タスク${i}`],
+    isRecurring: false, // ★ 通常タスク
+    recurrenceRule: null,
     createdAt: new Date(2025, 3, 20 + i).toISOString(),
     updatedAt: new Date().toISOString()
   }))
@@ -110,28 +155,35 @@ export const handlers = [
       10
     )
 
-    let processedTasks = [...mockTasks] // コピーして操作
+    // --- 1. 今日の定常タスクを抽出 ---
+    // (実際のバックエンドでは recurrenceRule を解釈して判定する)
+    // モックでは isRecurring=true のものを単純に「今日」のタスクとする
+    const todaysRoutines = mockTasks.filter((task) => task.isRecurring)
+    // ★ 定常タスクは完了状態フィルターの影響を受けない想定 (任意)
+    // ★ 定常タスクはソートの影響を受けず、常に先頭に来る想定 (任意)
 
-    // --- フィルター適用 ---
+    // --- 2. 通常タスクを抽出・フィルター・ソート ---
+    let regularTasks = mockTasks.filter((task) => !task.isRecurring)
+
+    // フィルター適用 (通常タスクのみ)
     if (assigneeId) {
-      // 'me' の場合は仮のIDに置き換える (実際のバックエンドでは認証情報から取得)
       const filterAssigneeId =
         assigneeId === 'me'
           ? 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
           : assigneeId
-      processedTasks = processedTasks.filter(
+      regularTasks = regularTasks.filter(
         (task) => task.assigneeId === filterAssigneeId
       )
     }
     if (isCompletedParam !== null) {
       const filterCompleted = isCompletedParam === 'true'
-      processedTasks = processedTasks.filter(
+      regularTasks = regularTasks.filter(
         (task) => task.isCompleted === filterCompleted
       )
     }
 
-    // --- ソート適用 ---
-    processedTasks.sort((a, b) => {
+    // ソート適用 (通常タスクのみ)
+    regularTasks.sort((a, b) => {
       switch (sort) {
         case 'dueDate_asc':
           if (a.dueDate == null) return 1
@@ -153,25 +205,31 @@ export const handlers = [
       }
     })
 
-    // --- ページネーション適用 ---
-    const totalItems = processedTasks.length
+    // --- 3. ページネーション情報計算 (通常タスクのみ対象) ---
+    const totalItems = regularTasks.length // ★ 通常タスクの総数
     const totalPages = Math.ceil(totalItems / limit)
     const startIndex = (page - 1) * limit
     const endIndex = startIndex + limit
-    const paginatedData = processedTasks.slice(startIndex, endIndex)
 
-    // --- ページネーションメタデータを作成 ---
+    // --- 4. ページネーション適用 (通常タスクのみ) ---
+    const paginatedRegularTasks = regularTasks.slice(startIndex, endIndex)
+
+    // --- 5. レスポンスデータを結合 ---
+    //    今日の定常タスク + ページネーションされた通常タスク
+    const responseData = [...todaysRoutines, ...paginatedRegularTasks]
+
+    // --- 6. ページネーションメタデータを作成 (通常タスクベース) ---
     const meta: PaginationMeta = {
-      totalItems,
+      totalItems, // 通常タスクの総数
       totalPages,
       currentPage: page,
       limit
     }
 
-    // --- PaginatedTasksResponse 形式でレスポンスを返す ---
+    // --- 7. PaginatedTasksResponse 形式でレスポンスを返す ---
     const response: PaginatedTasksResponse = {
-      data: paginatedData,
-      meta: meta
+      data: responseData, // 定常 + 通常タスク
+      meta: meta // 通常タスクのページネーション情報
     }
 
     return HttpResponse.json(response)

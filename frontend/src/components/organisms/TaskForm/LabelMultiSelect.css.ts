@@ -94,7 +94,7 @@ export const popoverContent = style([
     // 必要なら UserMenu と異なるスタイルを上書き
     maxHeight: '200px', // 高さに制限を設けてスクロールさせる
     overflowY: 'auto',
-    padding: vars.space[1] // 少し狭める
+    padding: vars.space[2] // 少し狭める
   }
 ])
 
@@ -105,8 +105,8 @@ export const checkboxItem = style([
     // UserMenu と異なるスタイルを上書き
     height: 'auto', // 高さを自動に
     minHeight: '35px',
-    padding: `${vars.space[1]} ${vars.space[2]}`, // パディング調整
-    gap: vars.space[2], // チェックボックスとラベルの間隔
+    padding: `${vars.space[2]} ${vars.space[3]}`, // パディング調整
+    gap: vars.space[3], // チェックボックスとラベルの間隔
     // ハイライト時の背景色などを調整しても良い
     selectors: {
       '&[data-highlighted]': {

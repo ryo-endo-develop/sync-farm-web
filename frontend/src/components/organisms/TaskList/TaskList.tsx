@@ -4,6 +4,7 @@ import { PutTaskInput, Task } from '../../../generated/api'
 import { useUpdateTaskMutation } from '../../../store/api/taskApi'
 import { TaskItem } from '../../molecules/TaskItem/TaskItem'
 import * as styles from './TaskList.css'
+import { TaskItemSkeleton } from '../../molecules/TaskItemSkeleton/TaskItemSkeleton'
 
 interface TaskListProps {
   tasks: Task[] | undefined
@@ -12,6 +13,7 @@ interface TaskListProps {
   error?: unknown
   onEdit?: (taskId: string) => void
   onDelete?: (taskId: string) => void
+  skeletonCount?: number
 }
 
 export const TaskList: React.FC<TaskListProps> = ({
@@ -20,7 +22,8 @@ export const TaskList: React.FC<TaskListProps> = ({
   isError,
   error,
   onEdit,
-  onDelete
+  onDelete,
+  skeletonCount = 5
 }) => {
   const [updateTask] = useUpdateTaskMutation()
 
@@ -36,7 +39,8 @@ export const TaskList: React.FC<TaskListProps> = ({
       name: task.name,
       assigneeId: task.assigneeId ?? null, // ?? null で undefined を null に変換
       dueDate: task.dueDate ?? null, // ?? null で undefined を null に変換
-      isCompleted: isCompleted
+      isCompleted: isCompleted,
+      labels: task.labels
     }
 
     try {
@@ -57,8 +61,19 @@ export const TaskList: React.FC<TaskListProps> = ({
   }
 
   if (isLoading) {
-    // ローディング中の表示 (将来的には Spinner Atom を使う)
-    return <div className={styles.loading}>読み込み中...</div>
+    // スケルトンを指定された数だけ表示
+    return (
+      <ul className={styles.list} aria-busy="true">
+        {/* aria-busy で読み込み中を示す */}
+        {Array.from({ length: skeletonCount }).map((_, index) => (
+          <li key={`skeleton-${index}`}>
+            {' '}
+            {/* key を設定 */}
+            <TaskItemSkeleton />
+          </li>
+        ))}
+      </ul>
+    )
   }
 
   if (isError) {

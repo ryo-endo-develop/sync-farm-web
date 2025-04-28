@@ -1,18 +1,40 @@
-import { Bell, Menu } from 'lucide-react' // アイコン例
+import { Bell, LogOut, Menu, Settings } from 'lucide-react' // アイコン例
 import React from 'react'
 import { Link } from 'react-router-dom' // ロゴをリンクにする場合
 
 import { vars } from '../../../styles/theme.css'
-import { Avatar } from '../../atoms/Avatar/Avatar' // UserMenu 仮実装用
 import { Button } from '../../atoms/Button/Button'
 import { Icon } from '../../atoms/Icon/Icon'
 import { Text } from '../../atoms/Text/Text' // Logo 代用
+import { UserMenu } from '../../molecules/UserMenu/UserMenu'
+import { MenuItem } from '../../molecules/UserMenu/UserMenu.types'
 import * as styles from './Header.css'
 import { HeaderProps } from './Header.types'
 
 export const Header: React.FC<HeaderProps> = ({ className }) => {
   // TODO: 実際のユーザー情報を取得する
   const currentUser = { name: 'Test User', initials: 'TU' } // ダミーデータ
+  const userMenuItems: MenuItem[] = [
+    {
+      label: '設定',
+      icon: <Icon as={Settings} size={16} />,
+      onClick: () => {
+        console.log('Settings clicked')
+        // TODO: 設定ページへの遷移処理など
+        // navigate('/settings');
+      },
+      isSeparator: false
+    },
+    {
+      label: 'ログアウト',
+      icon: <Icon as={LogOut} size={16} />,
+      onClick: () => {
+        console.log('Logout clicked')
+        // TODO: ログアウト処理
+      },
+      isSeparator: false
+    }
+  ]
 
   return (
     <header className={`${styles.header} ${className || ''}`}>
@@ -56,16 +78,8 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
           <Icon as={Bell} size={20} />
         </Button>
 
-        {/* ユーザーメニュー (仮: Avatar のみ) */}
-        {/* TODO: UserMenu Molecule を実装して置き換える */}
-        <div style={{ cursor: 'pointer' }} title={currentUser.name}>
-          <Avatar
-            // src={currentUser.avatarUrl} // 将来的に
-            initials={currentUser.initials}
-            size="sm"
-            alt={`ユーザー: ${currentUser.name}`}
-          />
-        </div>
+        {/* ★ UserMenu Molecule を使用 */}
+        <UserMenu user={currentUser} items={userMenuItems} />
       </div>
     </header>
   )

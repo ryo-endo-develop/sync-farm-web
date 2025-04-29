@@ -1,0 +1,12 @@
+fastapi>=0.110.0,<0.111.0 # FastAPI フレームワーク
+uvicorn[standard]>=0.29.0,<0.30.0 # ASGI サーバー (開発用・本番用)
+sqlalchemy>=2.0.29,<2.1.0 # ORM ライブラリ
+mysql-connector-python>=8.3.0,<8.4.0 # MySQL データベースドライバ
+pydantic>=2.6.4,<2.7.0 # データバリデーション (FastAPI が内部で使用)
+pydantic-settings>=2.2.1,<2.3.0 # 環境変数などからの設定読み込み (任意)
+python-dotenv>=1.0.1,<1.1.0 # .env ファイル読み込み (任意)
+
+# SQLAlchemy 2.0+ で非同期を使う場合 (任意)
+# aiomysql>=0.2.0,<0.3.0
+# greenlet>=3.0.3,<3.1.0
+

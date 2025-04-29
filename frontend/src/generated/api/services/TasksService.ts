@@ -18,7 +18,9 @@ export class TasksService {
      */
     public static getTasks({
         assigneeId,
+        isCompleted,
         sort = 'createdAt_desc',
+        labels,
         page = 1,
         limit = 20,
     }: {
@@ -27,9 +29,17 @@ export class TasksService {
          */
         assigneeId?: string,
         /**
+         * 完了状態でフィルタリング (true/false)
+         */
+        isCompleted?: boolean,
+        /**
          * ソート順を指定
          */
         sort?: 'createdAt_desc' | 'createdAt_asc' | 'dueDate_asc' | 'dueDate_desc',
+        /**
+         * 指定されたラベルを**すべて**含むタスクをフィルタリング (カンマ区切り)
+         */
+        labels?: string,
         /**
          * 表示するページ番号 (1始まり)
          */
@@ -44,7 +54,9 @@ export class TasksService {
             url: '/tasks',
             query: {
                 'assigneeId': assigneeId,
+                'isCompleted': isCompleted,
                 'sort': sort,
+                'labels': labels,
                 'page': page,
                 'limit': limit,
             },

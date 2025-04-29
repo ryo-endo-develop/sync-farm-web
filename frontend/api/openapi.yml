@@ -279,6 +279,44 @@ components:
         maximum: 100 # 上限を設定
         default: 20 # デフォルト値を設定
 
+    # ★★★ GET /tasks 用のパラメータ定義 ★★★
+    TaskAssigneeIdFilterParam:
+      name: assigneeId
+      in: query
+      required: false
+      description: 担当者IDでフィルタリング ('me' で自分のタスクを指定可能)
+      schema:
+        type: string
+        example: 'me'
+    TaskIsCompletedFilterParam:
+      name: isCompleted
+      in: query
+      required: false
+      description: 完了状態でフィルタリング (true/false)
+      schema:
+        type: boolean
+    TaskSortParam:
+      name: sort
+      in: query
+      required: false
+      description: ソート順を指定
+      schema:
+        type: string
+        enum:
+          - createdAt_desc
+          - createdAt_asc
+          - dueDate_asc
+          - dueDate_desc
+        default: createdAt_desc
+    TaskLabelsFilterParam:
+      name: labels
+      in: query
+      required: false
+      description: 指定されたラベルを**すべて**含むタスクをフィルタリング (カンマ区切り)
+      schema:
+        type: string # カンマ区切りの文字列として渡す
+        example: "家事,重要"
+
 paths:
   /health:
     get:
@@ -302,30 +340,12 @@ paths:
       summary: タスク一覧取得
       tags: [Tasks]
       parameters:
-        # --- ★★★ フィルター用パラメータ ★★★ ---
-        - name: assigneeId
-          in: query
-          required: false
-          description: 担当者IDでフィルタリング ('me' で自分のタスクを指定可能)
-          schema:
-            type: string
-            example: 'me' # または UUID
-        # --- ★★★ ソート用パラメータ ★★★ ---
-        - name: sort
-          in: query
-          required: false
-          description: ソート順を指定
-          schema:
-            type: string
-            enum: # 許可するソートキーと方向
-              - createdAt_desc # 作成日 (新しい順) - デフォルト
-              - createdAt_asc  # 作成日 (古い順)
-              - dueDate_asc    # 期限日 (昇順)
-              - dueDate_desc   # 期限日 (降順)
-              # - name_asc     # 名前順なども追加可能
-            default: createdAt_desc
-        - $ref: '#/components/parameters/PaginationPageParam'
-        - $ref: '#/components/parameters/PaginationLimitParam'
+       - $ref: '#/components/parameters/TaskAssigneeIdFilterParam'
+       - $ref: '#/components/parameters/TaskIsCompletedFilterParam'
+       - $ref: '#/components/parameters/TaskSortParam'
+       - $ref: '#/components/parameters/TaskLabelsFilterParam'
+       - $ref: '#/components/parameters/PaginationPageParam'
+       - $ref: '#/components/parameters/PaginationLimitParam'
       responses:
         '200':
           description: タスク一覧取得成功

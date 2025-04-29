@@ -8,8 +8,15 @@ import {
   Root as AlertDialogRoot, // Root は React 本体と被る可能性があるのでエイリアス推奨
   Title as AlertDialogTitle
 } from '@radix-ui/react-alert-dialog'
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
 import * as Dialog from '@radix-ui/react-dialog'
-import { X as CloseIcon } from 'lucide-react'
+import {
+  Content as PopoverContent,
+  Portal as PopoverPortal,
+  Root as PopoverRoot,
+  Trigger as PopoverTrigger
+} from '@radix-ui/react-popover'
+import { CheckIcon, Filter, X as CloseIcon } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 
 import { Task } from '../../generated/api'
@@ -29,24 +36,31 @@ import * as modalStyles from '../../styles/Modal.css'
 import { vars } from '../../styles/theme.css'
 import { Button } from '../atoms/Button/Button'
 import { Checkbox } from '../atoms/Checkbox/Checkbox'
+import { Icon } from '../atoms/Icon/Icon'
 import { Label } from '../atoms/Label/Label'
 import { Select } from '../atoms/Select/Select'
 import { SelectOption } from '../atoms/Select/Select.types'
+import { Text } from '../atoms/Text/Text'
 import { Pagination } from '../molecules/Pagenation/Pagenation'
 import { RoutineTaskList } from '../organisms/RoutineTaskList/RoutineTaskList'
+import * as multiSelectStyles from '../organisms/TaskForm/LabelMultiSelect.css'
 import { TaskForm } from '../organisms/TaskForm/TaskForm'
 import { TaskFormInitialValues } from '../organisms/TaskForm/TaskForm.types'
 import { TaskList } from '../organisms/TaskList/TaskList'
+import * as pageStyles from './TaskListPage.css'
 
 type SortOptionValue = 'createdAt_desc' | 'dueDate_asc' | 'dueDate_desc'
 const DEFAULT_LIMIT = 5
 
-// ★ 区切り線用のシンプルなスタイル
-const separatorStyle = {
-  border: 'none',
-  borderTop: `1px solid ${vars.color.border}`,
-  margin: `${vars.space[5]} 0` // 上下のマージン
-}
+const AVAILABLE_LABELS = [
+  '家事',
+  '仕事',
+  '買い物',
+  '重要',
+  '個人',
+  '後でやる',
+  '不明'
+]
 
 const TaskListPage: React.FC = () => {
   const [addTask, { isLoading: isAddingTask }] = useAddTaskMutation()
@@ -64,20 +78,25 @@ const TaskListPage: React.FC = () => {
   // フィルターとソート
   const [showOnlyMyTasks, setShowOnlyMyTasks] = useState(false)
   const [sortBy, setSortBy] = useState<SortOptionValue>('createdAt_desc')
+  const [selectedFilterLabels, setSelectedFilterLabels] = useState<string[]>([])
 
   // --- API フック ---
   // RTK Query フックを使ってタスク一覧を取得
   // pollingInterval を設定すると定期的に再取得 (例: 5分ごと)
-  const queryParams = useMemo(
-    () => ({
-      assigneeId: showOnlyMyTasks ? 'me' : undefined, // ★ 'me' を渡す (バックエンドで解釈)
-      // isCompleted: undefined, // 必要なら完了フィルターも追加
+  const queryParams = useMemo(() => {
+    const params = {
+      // ★ デバッグしやすいように変数に格納
+      assigneeId: showOnlyMyTasks ? 'me' : undefined,
       sort: sortBy,
+      labels:
+        selectedFilterLabels.length > 0
+          ? selectedFilterLabels.join(',')
+          : undefined,
       page: currentPage,
       limit: limit
-    }),
-    [showOnlyMyTasks, sortBy, currentPage, limit]
-  )
+    }
+    return params
+  }, [showOnlyMyTasks, sortBy, selectedFilterLabels, currentPage, limit])
   const {
     data: paginatedResponse,
     isLoading,
@@ -119,6 +138,16 @@ const TaskListPage: React.FC = () => {
   const handleSortChange = (value: SortOptionValue) => {
     setSortBy(value)
     setCurrentPage(1) // ページをリセット
+  }
+  const handleLabelFilterChange = (label: string, checked: boolean) => {
+    setSelectedFilterLabels((prevLabels) => {
+      const newLabels = checked
+        ? [...prevLabels, label] // チェックされたら追加
+        : prevLabels.filter((l) => l !== label) // 外れたら削除
+      setCurrentPage(1) // ページをリセット
+      return newLabels
+    })
+    void refetch()
   }
 
   // ページネーションハンドラー
@@ -218,98 +247,12 @@ const TaskListPage: React.FC = () => {
     <div>
       <h1>タスク一覧</h1>
 
-      {/* --- フィルターとソートコントロール --- */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: vars.space[4],
-          flexWrap: 'wrap',
-          gap: vars.space[3]
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Checkbox
-            id="filter-my-tasks"
-            checked={showOnlyMyTasks}
-            onChange={(e) => handleFilterChange(e.target.checked)}
-            label="自分のタスクのみ表示"
-            disabled={isLoadingOrFetching} // ローディング中は無効化
-          />
-        </div>
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: vars.space[2] }}
-        >
-          <Label
-            htmlFor="sort-tasks"
-            style={{
-              marginBottom: 0,
-              marginRight: vars.space[1],
-              flexShrink: 0
-            }}
-          >
-            並び順:
-          </Label>
-          <Select
-            id="sort-tasks"
-            options={sortOptions}
-            value={sortBy}
-            onChange={(e) =>
-              handleSortChange(e.target.value as SortOptionValue)
-            }
-            style={{ minWidth: '180px' }}
-            disabled={isLoadingOrFetching} // ローディング中は無効化
-          />
-        </div>
-      </div>
-
-      {/* --- ボタン類 --- */}
-      <div
-        style={{
-          marginBottom: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        {/* 新規追加ボタン */}
-        <Dialog.Root open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <Dialog.Trigger asChild>
-            <Button variant="primary">+ 新規タスク</Button>
-          </Dialog.Trigger>
-          <Dialog.Portal>
-            <Dialog.Overlay className={modalStyles.dialogOverlay} />
-            <Dialog.Content className={modalStyles.dialogContent}>
-              <Dialog.Title className={modalStyles.dialogTitle}>
-                新しいタスクを作成
-              </Dialog.Title>
-              <TaskForm
-                onSubmit={handleAddFormSubmit} // ★ 新規追加用 Submit ハンドラ
-                onCancel={() => setIsAddModalOpen(false)}
-                isLoading={isAddingTask}
-              />
-              <Dialog.Close asChild>{/* ... Close Button ... */}</Dialog.Close>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
-
-        <Button
-          onClick={() => {
-            void refetch()
-          }}
-          variant="secondary"
-          disabled={isLoading}
-        >
-          手動更新
-        </Button>
-      </div>
+      {/* --- ★★★ 区切り線 ★★★ --- */}
+      <hr className={pageStyles.separator} />
 
       {/* --- ★★★ 今日のルーティン セクション ★★★ --- */}
       <section>
-        <h2 style={{ fontSize: vars.fontSize.lg, marginBottom: vars.space[2] }}>
-          今日のルーティン
-        </h2>
+        <h2 className={pageStyles.sectionTitle}>今日のルーティン</h2>
         {/* ローディング中も表示しないか、専用スケルトンを用意 */}
         {!isLoadingOrFetching && <RoutineTaskList tasks={todaysRoutines} />}
         {/* 初回ローディング中のみスケルトン表示する例 */}
@@ -321,14 +264,136 @@ const TaskListPage: React.FC = () => {
       </section>
 
       {/* --- ★★★ 区切り線 ★★★ --- */}
-      <hr style={separatorStyle} />
+      <hr className={pageStyles.separator} />
 
       {/* --- ★★★ 通常のタスク セクション ★★★ --- */}
       <section>
-        <h2 style={{ fontSize: vars.fontSize.lg, marginBottom: vars.space[3] }}>
-          {/* フィルター状態に応じてタイトル変更 (任意) */}
+        <h2 className={pageStyles.sectionTitle}>
           {showOnlyMyTasks ? '自分のタスク' : '通常のタスク'}
         </h2>
+
+        {/* --- ボタン類 --- */}
+        <div className={pageStyles.topButtonArea}>
+          {/* 新規追加ボタン */}
+          <Dialog.Root open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <Dialog.Trigger asChild>
+              <Button variant="primary">+ 新規タスク</Button>
+            </Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Overlay className={modalStyles.dialogOverlay} />
+              <Dialog.Content className={modalStyles.dialogContent}>
+                <Dialog.Title className={modalStyles.dialogTitle}>
+                  新しいタスクを作成
+                </Dialog.Title>
+                <TaskForm
+                  onSubmit={handleAddFormSubmit} // ★ 新規追加用 Submit ハンドラ
+                  onCancel={() => setIsAddModalOpen(false)}
+                  isLoading={isAddingTask}
+                />
+                <Dialog.Close asChild>
+                  {/* ... Close Button ... */}
+                </Dialog.Close>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+        </div>
+
+        {/* --- フィルターとソートコントロール --- */}
+        <div className={pageStyles.controlsContainer}>
+          {/* 左側フィルター群 */}
+          <div className={pageStyles.filterGroup}>
+            {/* 自分のタスク */}
+            <Checkbox
+              id="filter-my-tasks"
+              checked={showOnlyMyTasks}
+              onChange={(e) => handleFilterChange(e.target.checked)}
+              label="自分のタスクのみ表示"
+              disabled={isLoadingOrFetching}
+            />
+
+            {/* ラベル */}
+            <PopoverRoot>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  iconLeft={<Icon as={Filter} size="1em" />}
+                  disabled={isLoadingOrFetching}
+                >
+                  ラベルで絞り込み{' '}
+                  {selectedFilterLabels.length > 0 &&
+                    `(${selectedFilterLabels.length})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverPortal>
+                <PopoverContent
+                  className={multiSelectStyles.popoverContent} // TaskForm のスタイルを流用
+                  sideOffset={5}
+                  align="start"
+                >
+                  <Text
+                    fontSize="sm"
+                    fontWeight="medium"
+                    style={{
+                      padding: `${vars.space[1]} ${vars.space[3]}`,
+                      color: vars.color.textSecondary
+                    }}
+                  >
+                    ラベルで絞り込む
+                  </Text>
+                  {AVAILABLE_LABELS.map((labelOption) => (
+                    <div
+                      key={labelOption}
+                      className={multiSelectStyles.checkboxItem}
+                    >
+                      <CheckboxPrimitive.Root
+                        id={`filter-label-${labelOption}`}
+                        checked={selectedFilterLabels.includes(labelOption)}
+                        onCheckedChange={(checked) => {
+                          // checked が boolean | 'indeterminate' なので型ガード
+                          if (typeof checked === 'boolean') {
+                            handleLabelFilterChange(labelOption, checked)
+                          }
+                        }}
+                        className={multiSelectStyles.checkboxRoot}
+                      >
+                        <CheckboxPrimitive.Indicator
+                          className={multiSelectStyles.checkboxIndicator}
+                        >
+                          <CheckIcon size={12} strokeWidth={3} />
+                        </CheckboxPrimitive.Indicator>
+                      </CheckboxPrimitive.Root>
+                      <Label
+                        htmlFor={`filter-label-${labelOption}`}
+                        className={multiSelectStyles.checkboxLabel}
+                      >
+                        {labelOption}
+                      </Label>
+                    </div>
+                  ))}
+                </PopoverContent>
+              </PopoverPortal>
+            </PopoverRoot>
+          </div>
+
+          {/* 右側ソート群 */}
+          <div className={pageStyles.sortGroup}>
+            <Label htmlFor="sort-tasks" className={pageStyles.sortLabel}>
+              並び順:
+            </Label>
+            <Select
+              id="sort-tasks"
+              options={sortOptions}
+              value={sortBy}
+              onChange={(e) =>
+                handleSortChange(e.target.value as SortOptionValue)
+              }
+              className={pageStyles.sortSelect}
+              disabled={isLoadingOrFetching}
+            />
+          </div>
+        </div>
+
         <TaskList
           tasks={regularTasks} // ★ 通常タスクのみを渡す
           isLoading={isLoadingOrFetching} // ローディング状態
@@ -338,6 +403,8 @@ const TaskListPage: React.FC = () => {
           onDelete={handleDeleteClick}
         />
       </section>
+
+      {/* --- ページネーション UI --- */}
       {paginationMeta && (
         <Pagination
           currentPage={paginationMeta.currentPage}
@@ -384,6 +451,7 @@ const TaskListPage: React.FC = () => {
         </Dialog.Portal>
       </Dialog.Root>
 
+      {/* --- 削除用モーダル --- */}
       <AlertDialogRoot open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         {/* Trigger は TaskItem 内のボタンが担当 */}
         <AlertDialogPortal>

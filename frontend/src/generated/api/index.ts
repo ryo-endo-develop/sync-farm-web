@@ -16,7 +16,11 @@ export type { PaginationPageParam } from './models/PaginationPageParam';
 export type { PutTaskInput } from './models/PutTaskInput';
 export type { SuccessResponse } from './models/SuccessResponse';
 export type { Task } from './models/Task';
+export type { TaskAssigneeIdFilterParam } from './models/TaskAssigneeIdFilterParam';
 export type { TaskIdParam } from './models/TaskIdParam';
+export type { TaskIsCompletedFilterParam } from './models/TaskIsCompletedFilterParam';
+export type { TaskLabelsFilterParam } from './models/TaskLabelsFilterParam';
+export { TaskSortParam } from './models/TaskSortParam';
 export type { User } from './models/User';
 
 export { MembersService } from './services/MembersService';

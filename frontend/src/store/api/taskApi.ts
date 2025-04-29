@@ -11,6 +11,7 @@ type GetTasksParams = {
   assigneeId?: string
   isCompleted?: boolean
   sort?: 'createdAt_desc' | 'createdAt_asc' | 'dueDate_asc' | 'dueDate_desc'
+  labels?: string
   page?: number
   limit?: number
 }
@@ -33,6 +34,7 @@ export const tasksApi = createApi({
           if (params.isCompleted !== undefined)
             queryParams.append('isCompleted', String(params.isCompleted))
           if (params.sort) queryParams.append('sort', params.sort)
+          if (params.labels) queryParams.append('labels', params.labels)
           if (params.page) queryParams.append('page', String(params.page))
           if (params.limit) queryParams.append('limit', String(params.limit))
         }

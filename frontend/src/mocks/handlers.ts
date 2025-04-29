@@ -1,4 +1,3 @@
-// src/mocks/handlers.ts
 import { delay, http, HttpResponse } from 'msw'
 
 import type {
@@ -8,11 +7,10 @@ import type {
   PutTaskInput,
   Task,
   User
-} from '../generated/api' // 生成された型をインポート
+} from '../generated/api'
 
 // インメモリでタスクデータを保持 (モック用)
 let mockTasks: Task[] = [
-  // 通常タスクの例
   {
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcde0',
     name: '牛乳を買う',
@@ -49,7 +47,6 @@ let mockTasks: Task[] = [
     createdAt: '2025-04-18T09:00:00Z',
     updatedAt: '2025-04-19T11:00:00Z'
   },
-  // 定常タスクの例
   {
     id: 'routine-001',
     name: 'ゴミ捨て (燃えるゴミ)',
@@ -85,8 +82,7 @@ let mockTasks: Task[] = [
     recurrenceRule: 'weekdays',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-04-28T08:00:00Z'
-  }, // 今日完了した例
-  // 通常タスクのダミーデータ (isRecurring: false を追加)
+  },
   ...Array.from({ length: 25 }, (_, i) => ({
     id: crypto.randomUUID(),
     name: `ダミータスク ${i + 1}`,
@@ -95,7 +91,7 @@ let mockTasks: Task[] = [
       i % 4 === 0 ? null : new Date(2025, 4, 1 + i).toISOString().split('T')[0],
     isCompleted: i % 5 === 0,
     labels: i % 2 === 0 ? ['個人'] : ['プロジェクトA', `タスク${i}`],
-    isRecurring: false, // ★ 通常タスク
+    isRecurring: false,
     recurrenceRule: null,
     createdAt: new Date(2025, 3, 20 + i).toISOString(),
     updatedAt: new Date().toISOString()
@@ -146,6 +142,7 @@ export const handlers = [
     const assigneeId = url.searchParams.get('assigneeId')
     const isCompletedParam = url.searchParams.get('isCompleted')
     const sort = url.searchParams.get('sort') || 'createdAt_desc' // デフォルトソート
+    const labelsParam = url.searchParams.get('labels')
     const page = parseInt(
       url.searchParams.get('page') || String(DEFAULT_PAGE),
       10
@@ -180,6 +177,23 @@ export const handlers = [
       regularTasks = regularTasks.filter(
         (task) => task.isCompleted === filterCompleted
       )
+    }
+    if (labelsParam) {
+      // カンマ区切り文字列を配列に変換
+      const filterLabels = labelsParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s)
+      if (filterLabels.length > 0) {
+        // 指定されたラベルを「すべて」含むタスクをフィルタリング (AND 条件)
+        regularTasks = regularTasks.filter((task) =>
+          filterLabels.every((filterLabel) => task.labels.includes(filterLabel))
+        )
+        // もし「いずれか」を含む (OR 条件) にする場合は .some() を使う
+        // regularTasks = regularTasks.filter(task =>
+        //     filterLabels.some(filterLabel => task.labels.includes(filterLabel))
+        // );
+      }
     }
 
     // ソート適用 (通常タスクのみ)

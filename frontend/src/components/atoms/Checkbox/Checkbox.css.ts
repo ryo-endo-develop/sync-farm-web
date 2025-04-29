@@ -3,16 +3,24 @@ import { recipe } from '@vanilla-extract/recipes'
 
 import { vars } from '../../../styles/theme.css'
 
-// チェックボックスとラベルを囲むコンテナ
-export const container = style({
-  display: 'inline-flex', // ラベルとチェックボックスを横並び
-  alignItems: 'center',
-  cursor: 'pointer',
+// ★ ルートの label 要素に適用するスタイルを追加
+export const labelContainer = style({
+  display: 'inline-flex', // 要素を横並びにする
+  alignItems: 'center', // ★ 垂直方向中央揃え
+  gap: vars.space[2], // チェックボックスとラベルの間隔
+  cursor: 'pointer', // クリック可能を示す
   userSelect: 'none',
-  gap: vars.space[2] // チェックボックスとラベルの間隔
+
+  // 無効時のスタイル (data属性を利用)
+  selectors: {
+    '&[data-disabled="true"]': {
+      cursor: 'not-allowed',
+      opacity: 0.7 // 全体を少し薄くする
+    }
+  }
 })
 
-// 実際の input 要素 (視覚的に隠す)
+// 実際の input 要素 (視覚的に隠す) - 変更なし
 export const hiddenInput = style({
   border: 0,
   clip: 'rect(0 0 0 0)',
@@ -25,17 +33,20 @@ export const hiddenInput = style({
   whiteSpace: 'nowrap'
 })
 
-// 見た目上のチェックボックスボックス
+// 見た目上のチェックボックスボックス (recipe で状態管理) - 変更なし
 export const checkboxBox = recipe({
   base: {
-    display: 'inline-block',
-    width: vars.fontSize.md, // フォントサイズ基準のサイズ (例: 16px)
+    display: 'inline-flex', // flex を使うと中のチェックマークも揃えやすい
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: vars.fontSize.md, // 16px 程度
     height: vars.fontSize.md,
     border: `2px solid ${vars.color.border}`,
-    borderRadius: vars.borderRadius.sm, // 少し角丸
+    borderRadius: vars.borderRadius.sm,
     backgroundColor: vars.color.surface,
     transition: 'border-color 0.2s ease-out, background-color 0.2s ease-out',
-    flexShrink: 0 // コンテナが縮んでも潰れないように
+    flexShrink: 0
+    // cursor は親の labelContainer で設定
   },
   variants: {
     isChecked: {
@@ -43,17 +54,15 @@ export const checkboxBox = recipe({
         borderColor: vars.color.primary,
         backgroundColor: vars.color.primary
       }
-      // false: { // isChecked=false は base のスタイルを使う }
     },
     isDisabled: {
       true: {
         borderColor: vars.color.border,
-        backgroundColor: `color-mix(in srgb, ${vars.color.border} 30%, ${vars.color.surface} 70%)`,
-        opacity: 0.7
+        backgroundColor: `color-mix(in srgb, ${vars.color.border} 30%, ${vars.color.surface} 70%)`
+        // opacity, cursor は親の labelContainer で設定
       }
     }
   },
-  // 複合バリアント: チェックされていて無効な場合など
   compoundVariants: [
     {
       variants: { isChecked: true, isDisabled: true },
@@ -69,38 +78,36 @@ export const checkboxBox = recipe({
   }
 })
 
-// チェックマーク (SVGや疑似要素で表現)
+// チェックマーク - 変更なし
 export const checkmark = style({
-  display: 'block', // または 'inline-block'
-  width: '100%', // 親要素(checkboxBox)に合わせる
+  display: 'block', // または 'flex'
+  width: '100%',
   height: '100%',
-  color: vars.color.white, // チェックマークの色 (チェック時)
-  opacity: 0, // デフォルトは非表示
+  color: vars.color.white,
+  opacity: 0,
   transition: 'opacity 0.1s ease-out',
   selectors: {
-    // isChecked=true の場合に表示
     [`${checkboxBox({ isChecked: true })} &`]: {
       opacity: 1
     },
-    // 無効時は少し薄く
     [`${checkboxBox({ isChecked: true, isDisabled: true })} &`]: {
-      opacity: 0.8 // または色を変える
-      // color: vars.color.textSecondary,
+      opacity: 0.8
     }
   }
 })
 
-// チェックボックス用ラベルのスタイル (オプション)
+// チェックボックス用ラベルのスタイル
 export const labelText = style({
   fontSize: vars.fontSize.md,
   color: vars.color.textPrimary,
-  lineHeight: vars.lineHeight.normal,
-
-  // 無効時のラベルスタイル
+  lineHeight: 1.3, // ★ line-height を調整して、チェックボックスとの高さを合わせやすくする
+  // marginLeft は親の gap で設定するので削除
+  // userSelect, cursor は親の labelContainer で設定
   selectors: {
-    [`${container}:has(${hiddenInput}:disabled) &`]: {
-      color: vars.color.textSecondary,
-      opacity: 0.7
+    // 無効時のラベルスタイル (親の data-disabled を参照)
+    [`${labelContainer}[data-disabled="true"] &`]: {
+      color: vars.color.textSecondary
+      // opacity は親で設定
     }
   }
 })

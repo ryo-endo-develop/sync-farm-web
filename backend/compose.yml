@@ -1,60 +1,67 @@
 services:
-  # FastAPI アプリケーションサービス
   app:
-    build: . # カレントディレクトリの Dockerfile を使用
+    build: .
     container_name: syncfam_app
     ports:
-      - "8000:80" # ホストの 8000番ポートをコンテナの 80番ポートにマッピング
+      - "8000:80"
     volumes:
-      - ./app:/app # ホストの app ディレクトリをコンテナの /app にマウント (コード変更を即時反映)
+      - ./app:/app
+      # ★ alembic.ini と migrations ディレクトリもマウント (alembic コマンド実行用)
+      - ./alembic.ini:/app/alembic.ini
+      - ./migrations:/app/migrations
     environment:
-      # ★ データベース接続情報 (MySQL サービスを参照)
-      #    実際には .env ファイルや secrets を使うことを推奨
-      DATABASE_URL: mysql+mysqlconnector://user:password@db:3306/syncfam_db
-      # PYTHONUNBUFFERED: 1 # Dockerfile で設定済みなら不要
+      # ★ .env ファイルから DATABASE_URL を読み込む
+      # FastAPI アプリ側 (database.py) でこの環境変数を参照する
+      DATABASE_URL: ${DATABASE_URL}
+      # 個別の変数を使う場合は以下のようにする
+      # DB_USER: ${MYSQL_USER}
+      # DB_PASSWORD: ${MYSQL_PASSWORD}
+      # DB_HOST: db
+      # DB_PORT: 3306
+      # DB_NAME: ${MYSQL_DATABASE}
     depends_on:
-      db: # db サービスが起動してから app サービスを起動
-        condition: service_healthy # MySQL がヘルスチェックをパスしてから
+      db:
+        condition: service_healthy
     networks:
       - syncfam_network
+    # ★ 開発用にコンテナが起動し続けるようにする (任意)
+    # command: sleep infinity # uvicorn ではなく、手動で起動する場合など
 
-  # MySQL データベースサービス
   db:
     image: mysql:8.3
     container_name: syncfam_db
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword # ルートパスワード (開発用)
-      MYSQL_DATABASE: syncfam_db # 作成するデータベース名
-      MYSQL_USER: user # 作成するユーザー名
-      MYSQL_PASSWORD: password # 作成するユーザーのパスワード
+      # ★ .env ファイルから読み込む
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - mysql_data:/var/lib/mysql # 名前付きボリュームでデータを永続化
-      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql # 初期化用SQL (任意)
+      - mysql_data:/var/lib/mysql
     ports:
-      # ホストから直接 DB に接続したい場合 (開発時のみ推奨)
-      - "3307:3306" # ホストの 3307番ポートをコンテナの 3306番ポートにマッピング
-    healthcheck: # コンテナが正常に起動したか確認
-      test: [
+      - "3307:3306" # ホストからの接続用
+    healthcheck:
+      # ★ 変数置換を使う
+      test:
+        [
           "CMD",
           "mysqladmin",
           "ping",
           "-h",
           "localhost",
           "-u",
-          "$${MYSQL_USER}",
-          "-p$${MYSQL_PASSWORD}",
-        ] # $$ でエスケープ
+          "${MYSQL_USER}",
+          "-p${MYSQL_PASSWORD}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - syncfam_network
 
-# 名前付きボリュームの定義
 volumes:
   mysql_data:
 
-# ネットワークの定義
 networks:
   syncfam_network:
     driver: bridge

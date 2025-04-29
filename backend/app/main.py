@@ -2,20 +2,6 @@ from fastapi import FastAPI, Depends, HTTPException
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-# SQLAlchemy 関連のインポート (後で使う)
-# from .database import SessionLocal, engine, init_db
-# from . import models
-
-# --- アプリケーションのライフサイクルイベント (DB接続など) ---
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     print("Initializing database...")
-#     # アプリケーション起動時に実行 (例: DBテーブル作成)
-#     # await init_db()
-#     yield
-#     # アプリケーション終了時に実行 (例: DB接続クローズ)
-#     print("Closing database connection...")
-#     # await engine.dispose() # 非同期エンジンの場合
 
 # FastAPI アプリケーションインスタンスを作成
 # app = FastAPI(lifespan=lifespan) # ライフサイクルイベントを使う場合

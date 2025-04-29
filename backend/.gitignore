@@ -1,0 +1,44 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+env/
+venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.egg-info/
+.installed.cfg
+*.egg
+*.manifest
+*.spec
+
+# Docker
+docker-compose.override.yml
+docker-compose.*.yml
+!docker-compose.prod.yml
+
+# IDE / Editor folders
+.idea/
+.vscode/
+*.swp
+*~
+
+# Alembic
+migrations/versions/*.py

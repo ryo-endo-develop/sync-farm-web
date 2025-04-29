@@ -6,6 +6,8 @@ pydantic>=2.6.4,<2.7.0 # データバリデーション (FastAPI が内部で使
 pydantic-settings>=2.2.1,<2.3.0 # 環境変数などからの設定読み込み (任意)
 python-dotenv>=1.0.1,<1.1.0 # .env ファイル読み込み (任意)
 
+alembic>=1.13.1,<1.14.0
+
 # SQLAlchemy 2.0+ で非同期を使う場合 (任意)
 # aiomysql>=0.2.0,<0.3.0
 # greenlet>=3.0.3,<3.1.0

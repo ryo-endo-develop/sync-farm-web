@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # 環境変数設定
-ENV PYTHONDONTWRITEBYTECODE 1 # .pyc ファイルを作成しない
-ENV PYTHONUNBUFFERED 1      # Python の出力バッファリングを無効化 (ログ確認しやすく)
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
 # 作業ディレクトリを設定
 WORKDIR /app

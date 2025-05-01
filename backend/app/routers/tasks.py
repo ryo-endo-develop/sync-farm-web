@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -106,3 +107,105 @@ async def update_existing_task(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while updating the task.",
         )
+
+
+@router.get(
+    "/tasks",
+    response_model=schemas.PaginatedTasksResponse,
+    summary="タスク一覧取得 (通常 + 今日の定常タスク)",
+    tags=["Tasks"],
+)
+async def read_tasks(
+    # クエリパラメータを受け取る (OpenAPI定義に合わせる)
+    assigneeId: Optional[str] = None,
+    isCompleted: Optional[bool] = None,
+    sort: str = "createdAt_desc",
+    labels: Optional[str] = None,  # カンマ区切り文字列
+    page: int = 1,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    # current_user: models.User = Depends(get_current_user) # ★ 認証実装後
+) -> schemas.PaginatedTasksResponse:
+    """
+    指定されたフィルター、ソート、ページネーション条件に基づいてタスク一覧を取得します。
+    このリストには、条件に一致する**通常のタスク**と、**今日の定常タスク**が含まれる場合があります。
+    ページネーション情報(`meta`)は、通常のタスクのみを対象として計算される想定です。
+    """
+    # ★ ラベル文字列をリストに変換 (空の場合は None)
+    label_list = (
+        [label.strip() for label in labels.split(",")] if labels else None
+    )
+
+    # ★ current_user_id を取得 (認証が必要) - 今は仮で None
+    current_user_id_placeholder = None  # TODO: Replace with actual user
+    if assigneeId == "me" and not current_user_id_placeholder:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required for 'me' filter",
+        )
+
+    # crud.get_tasks を呼び出し
+    tasks_list, total_regular_tasks = crud.get_tasks(
+        db=db,
+        assignee_id=assigneeId,
+        is_completed=isCompleted,
+        labels=label_list,
+        sort=sort,
+        page=page,
+        limit=limit,
+        current_user_id=current_user_id_placeholder,
+    )
+
+    # ページネーションメタデータを作成
+    total_pages = (
+        (total_regular_tasks + limit - 1) // limit if limit > 0 else 0
+    )
+
+    # レスポンスを構築
+    response = schemas.PaginatedTasksResponse(
+        data=tasks_list,  # 定常タスク + 通常タスク
+        meta=schemas.PaginationMeta(
+            totalItems=total_regular_tasks,  # 通常タスクの総数
+            totalPages=total_pages,
+            currentPage=page,
+            limit=limit,
+        ),
+    )
+    # FastAPI が models.Task を schemas.Task に変換してくれる
+    return response
+
+
+@router.delete(
+    "/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,  # 成功時はボディなし
+    summary="通常タスク削除",
+    tags=["Tasks"],
+)
+async def delete_existing_task(
+    task_id: str, db: Session = Depends(get_db)
+) -> None:  # 戻り値なし
+    """
+    指定された ID の通常のタスクを削除します。
+    定常タスクの定義は削除されません。
+
+    タスクが見つからない場合は 404 エラーを返します。
+    """
+    try:
+        UUID(task_id, version=4)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid task ID format",
+        )
+
+    deleted = crud.delete_task(db=db, task_id=task_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"Task not found with id: {task_id}"
+                "or it might be a recurring task"
+            ),
+        )
+    # 成功時は None を返す (FastAPI が 204 を返す)
+    return None

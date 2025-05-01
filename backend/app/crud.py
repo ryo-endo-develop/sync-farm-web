@@ -1,11 +1,107 @@
-from typing import List
+from typing import List, Optional, Tuple
 from uuid import UUID
 
+from sqlalchemy import ColumnElement, and_, delete
+from sqlalchemy import func as sql_func
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 
 import models
 import schemas
+
+
+# --- ヘルパー関数 ---
+def get_labels_by_ids(
+    db: Session, label_ids: List[UUID]
+) -> List[models.Label]:
+    """
+    指定された ID のリストに一致する Label オブジェクトのリストを取得する。
+
+    Args:
+        db: SQLAlchemy セッションオブジェクト。
+        label_ids: 取得したいラベルの UUID のリスト。
+
+    Returns:
+        models.Label オブジェクトのリスト。ID が見つからない場合は空リスト。
+    """
+    if not label_ids:
+        return []
+    # UUID を文字列に変換してクエリに使用
+    label_id_strs = [str(label_id) for label_id in label_ids]
+    stmt = select(models.Label).where(models.Label.id.in_(label_id_strs))
+    return list(db.scalars(stmt).all())
+
+
+def get_task(db: Session, task_id: str) -> models.Task | None:
+    """
+    指定された ID のタスクを、関連ラベルも含めて取得する。
+
+    Args:
+        db: SQLAlchemy セッションオブジェクト。
+        task_id: 取得するタスクの UUID 文字列。
+
+    Returns:
+        models.Task オブジェクト、または見つからない場合は None。
+    """
+    # labels リレーションシップを Eager Loading する (joinedload または selectinload)
+    stmt = (
+        select(models.Task)
+        .options(selectinload(models.Task.labels))
+        .where(models.Task.id == task_id)
+    )
+    return db.scalars(stmt).first()
+
+
+# get_tasks 用のヘルパー関数 (フィルター条件構築)
+def _build_task_filter_conditions(
+    assignee_id: Optional[str],
+    is_completed: Optional[bool],
+    labels: Optional[List[str]],
+    current_user_id: Optional[str],
+) -> List[ColumnElement[bool]]:  # SQLAlchemy の条件式のリストを返す
+    """タスク一覧取得用のフィルター条件リストを構築する。"""
+    filter_conditions: List[ColumnElement[bool]] = []
+    filter_conditions.append(
+        models.Task.isRecurring is False
+    )  # 通常タスクのみ
+
+    if assignee_id == "me" and current_user_id:
+        filter_conditions.append(models.Task.assigneeId == current_user_id)
+    elif assignee_id and assignee_id != "me":
+        filter_conditions.append(models.Task.assigneeId == assignee_id)
+
+    if is_completed is not None:
+        filter_conditions.append(models.Task.isCompleted == is_completed)
+
+    if labels:
+        # AND 条件の場合 (すべてのラベルを含む)
+        for label_name in labels:
+            filter_conditions.append(
+                models.Task.labels.any(models.Label.name == label_name)
+            )
+        # OR 条件の場合 (いずれかのラベルを含む)
+        # label_conditions =
+        #     [models.Task.labels.any(models.Label.name == name)
+        #      for name in labels]
+        # filter_conditions.append(or_(*label_conditions))
+
+    return filter_conditions
+
+
+# get_tasks 用のヘルパー関数 (ソート条件構築)
+def _build_task_order_by_clause(sort: str) -> Optional[ColumnElement]:
+    """タスク一覧取得用のソート条件式を構築する。"""
+    order_by_clause = None
+    if sort == "dueDate_asc":
+        order_by_clause = models.Task.dueDate.asc().nullslast()
+    elif sort == "dueDate_desc":
+        order_by_clause = models.Task.dueDate.desc().nullslast()
+    elif sort == "createdAt_asc":
+        order_by_clause = models.Task.createdAt.asc()
+    elif sort == "createdAt_desc":  # デフォルト含む
+        order_by_clause = models.Task.createdAt.desc()
+    # 他のソート条件も追加可能
+    return order_by_clause
 
 
 # --- Label CRUD ---
@@ -66,54 +162,7 @@ def create_label(db: Session, label: schemas.LabelCreate) -> models.Label:
     return db_label
 
 
-# --- ヘルパー関数 ---
-def get_labels_by_ids(
-    db: Session, label_ids: List[UUID]
-) -> List[models.Label]:
-    """
-    指定された ID のリストに一致する Label オブジェクトのリストを取得する。
-
-    Args:
-        db: SQLAlchemy セッションオブジェクト。
-        label_ids: 取得したいラベルの UUID のリスト。
-
-    Returns:
-        models.Label オブジェクトのリスト。ID が見つからない場合は空リスト。
-    """
-    if not label_ids:
-        return []
-    # UUID を文字列に変換してクエリに使用
-    label_id_strs = [str(label_id) for label_id in label_ids]
-    stmt = select(models.Label).where(models.Label.id.in_(label_id_strs))
-    return list(db.scalars(stmt).all())
-
-
-def get_task(db: Session, task_id: str) -> models.Task | None:
-    """
-    指定された ID のタスクを、関連ラベルも含めて取得する。
-
-    Args:
-        db: SQLAlchemy セッションオブジェクト。
-        task_id: 取得するタスクの UUID 文字列。
-
-    Returns:
-        models.Task オブジェクト、または見つからない場合は None。
-    """
-    # labels リレーションシップを Eager Loading する (joinedload または selectinload)
-    stmt = (
-        select(models.Task)
-        .options(
-            joinedload(models.Task.labels)  # JOIN でラベルも一緒に取得
-            # selectinload(models.Task.labels) # 別クエリで効率的に取得
-        )
-        .where(models.Task.id == task_id)
-    )
-    return db.scalars(stmt).first()
-
-
 # --- Task CRUD ---
-
-
 def create_task(
     db: Session, task_data: schemas.TaskCreateApiInput
 ) -> models.Task:
@@ -210,7 +259,102 @@ def update_task(
     return db_task
 
 
-# def delete_task(...)
+def get_tasks(
+    db: Session,
+    assignee_id: Optional[str] = None,
+    is_completed: Optional[bool] = None,
+    labels: Optional[List[str]] = None,
+    sort: str = "createdAt_desc",
+    page: int = 1,
+    limit: int = 10,
+    current_user_id: Optional[str] = None,
+) -> Tuple[List[models.Task], int]:
+    """
+    タスク一覧を取得します (フィルター/ソート/ページネーション対応)。
+    今日の定常タスクと、フィルター/ソート/ページネーションされた通常タスクを返します。
+
+    Args:
+        db: DBセッション
+        assignee_id: 担当者IDフィルター ('me' または UUID)
+        is_completed: 完了状態フィルター
+        labels: ラベル名フィルター (指定されたラベルをすべて含むタスク)
+        sort: ソート順
+        page: ページ番号
+        limit: 1ページあたりの件数
+        current_user_id: assigneeId='me' の場合に使う現在のユーザーID
+
+    Returns:
+        タプル: (表示するタスクのリスト, フィルター条件に合う通常タスクの総数)
+    """
+    # --- 1. 今日の定常タスクを取得 ---
+    # (実際のバックエンドでは recurrenceRule を解釈して判定)
+    # モックと同様に isRecurring=true のものを取得
+    # TODO: 担当者フィルターも定常タスクに適用するか検討
+    routine_stmt = (
+        select(models.Task)
+        .options(selectinload(models.Task.labels))
+        .where(models.Task.isRecurring is True)
+    )
+    todays_routines = list(db.scalars(routine_stmt).all())
+
+    # --- 2. 通常タスクのフィルター条件を構築 ---
+    filter_conditions = _build_task_filter_conditions(
+        assignee_id, is_completed, labels, current_user_id
+    )
+
+    # --- 3. 通常タスクの総数をカウント ---
+    count_query = select(sql_func.count(models.Task.id)).select_from(
+        models.Task
+    )
+    if filter_conditions:
+        count_query = count_query.where(and_(*filter_conditions))
+    total_items = db.scalar(count_query) or 0
+
+    # --- 4. 通常タスク取得クエリを構築 ---
+    regular_task_query = select(models.Task).options(
+        selectinload(models.Task.labels)  # Eager load labels
+    )
+    if filter_conditions:
+        regular_task_query = regular_task_query.where(and_(*filter_conditions))
+
+    # ソート条件を構築して適用
+    order_by_clause = _build_task_order_by_clause(sort)
+    if order_by_clause is not None:
+        regular_task_query = regular_task_query.order_by(order_by_clause)
+
+    # ページネーションを適用
+    offset = (page - 1) * limit
+    regular_task_query = regular_task_query.offset(offset).limit(limit)
+
+    # --- 5. 通常タスクを取得 ---
+    paginated_regular_tasks = list(db.scalars(regular_task_query).all())
+
+    # --- 6. 結果を結合して返す ---
+    result_tasks = todays_routines + paginated_regular_tasks
+    return result_tasks, total_items
+
+
+def delete_task(db: Session, task_id: str) -> bool:
+    """
+    指定された ID のタスクを削除する。
+
+    Args:
+        db: SQLAlchemy セッションオブジェクト。
+        task_id: 削除するタスクの UUID 文字列。
+
+    Returns:
+        削除が成功した場合は True、タスクが見つからなかった場合は False。
+    """
+    # isRecurring=false の条件を追加し、通常タスクのみ削除可能にする (任意)
+    stmt = delete(models.Task).where(
+        models.Task.id == task_id,
+        models.Task.isRecurring is False,  # 通常タスクのみ削除
+    )
+    result = db.execute(stmt)
+    db.commit()
+    # result.rowcount は削除された行数を返す
+    return result.rowcount > 0
+
 
 # --- User CRUD (後で実装) ---
 # def get_user(...)

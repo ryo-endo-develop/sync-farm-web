@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 import models
 import schemas
@@ -88,6 +88,29 @@ def get_labels_by_ids(
     return list(db.scalars(stmt).all())
 
 
+def get_task(db: Session, task_id: str) -> models.Task | None:
+    """
+    指定された ID のタスクを、関連ラベルも含めて取得する。
+
+    Args:
+        db: SQLAlchemy セッションオブジェクト。
+        task_id: 取得するタスクの UUID 文字列。
+
+    Returns:
+        models.Task オブジェクト、または見つからない場合は None。
+    """
+    # labels リレーションシップを Eager Loading する (joinedload または selectinload)
+    stmt = (
+        select(models.Task)
+        .options(
+            joinedload(models.Task.labels)  # JOIN でラベルも一緒に取得
+            # selectinload(models.Task.labels) # 別クエリで効率的に取得
+        )
+        .where(models.Task.id == task_id)
+    )
+    return db.scalars(stmt).first()
+
+
 # --- Task CRUD ---
 
 
@@ -135,9 +158,58 @@ def create_task(
     return db_task
 
 
-# def get_tasks(...)
-# def create_task(...)
-# def update_task(...)
+def update_task(
+    db: Session, task_id: str, task_data: schemas.TaskUpdateApiInput
+) -> models.Task | None:
+    """
+    指定された ID のタスクを更新し、ラベルの紐付けも更新する。
+
+    Args:
+        db: SQLAlchemy セッションオブジェクト。
+        task_id: 更新するタスクの UUID 文字列。
+        task_data: 更新後のタスク情報 (Pydantic スキーマ、label_ids を含む)。
+
+    Returns:
+        更新された models.Task オブジェクト、またはタスクが見つからない場合は None。
+
+    Raises:
+        ValueError: 指定された label_id が存在しない場合に発生。
+    """
+    # 1. 更新対象のタスクを取得
+    db_task = get_task(db, task_id)
+    if not db_task:
+        return None  # タスクが見つからない
+
+    # 2. 紐付ける新しい Label オブジェクトを取得
+    db_labels = get_labels_by_ids(db, task_data.label_ids)
+    if len(db_labels) != len(task_data.label_ids):
+        found_ids = {str(label.id) for label in db_labels}
+        missing_ids = [
+            str(id) for id in task_data.label_ids if str(id) not in found_ids
+        ]
+        raise ValueError(
+            f"Labels not found with IDs: {', '.join(missing_ids)}"
+        )
+
+    # 3. タスクの各フィールドを更新
+    #    Pydantic モデルのフィールドをループして更新
+    update_data = task_data.model_dump(
+        exclude={"label_ids"}, exclude_unset=True
+    )  # 未設定の項目は除外しない (PUT なので)
+    for key, value in update_data.items():
+        setattr(db_task, key, value)  # db_task.name = value のように属性を設定
+
+    # 4. ラベルの関連を更新 (既存をクリアして新しいものを追加)
+    db_task.labels.clear()  # 既存の関連をクリア
+    db_task.labels.extend(db_labels)  # 新しい関連を追加
+
+    # 5. DB にコミットして更新を反映
+    db.add(db_task)  # セッションに変更を通知 (必須ではない場合もある)
+    db.commit()
+    db.refresh(db_task)  # 更新後の状態を再読み込み
+    return db_task
+
+
 # def delete_task(...)
 
 # --- User CRUD (後で実装) ---

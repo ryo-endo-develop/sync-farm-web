@@ -16,16 +16,25 @@ class LabelBase(BaseModel):
     )
 
 
-class LabelCreate(LabelBase):  # API の LabelCreateInput に対応
+# API の LabelCreateInput に対応
+
+
+class LabelCreate(LabelBase):
     pass
 
 
-class LabelUpdate(BaseModel):  # API の LabelUpdateInput に対応
+# API の LabelUpdateInput に対応
+
+
+class LabelUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=50)
     color: Optional[str] = None
 
 
-class Label(LabelBase):  # API の Label レスポンスに対応
+# API の Label レスポンスに対応
+
+
+class Label(LabelBase):
     id: UUID4
     # createdAt, updatedAt は含めない (OpenAPI 仕様に合わせる)
 
@@ -50,14 +59,14 @@ class TaskBase(BaseModel):
         from_attributes = True  # SQLAlchemyモデルインスタンスからPydanticモデルを作成可能にする
 
 
-# ★★★ TaskCreate (API の CreateTaskInput に対応) ★★★
+# TaskCreate (API の CreateTaskInput に対応)
 class TaskCreateApiInput(TaskBase):
     label_ids: List[UUID4] = Field(
         ..., description="紐付けるラベルのID配列", min_length=1
     )
 
 
-# ★★★ TaskUpdate (API の PutTaskInput に対応) ★★★
+# TaskUpdate (API の PutTaskInput に対応)
 class TaskUpdateApiInput(TaskBase):
     isCompleted: bool  # PUT では必須
     label_ids: List[UUID4] = Field(
@@ -69,9 +78,7 @@ class TaskUpdateApiInput(TaskBase):
 class Task(TaskBase):
     id: UUID4
     isCompleted: bool
-    labels: List[Label] = (
-        []
-    )  # ★ Label スキーマのリストに変更 (デフォルト空配列)
+    labels: List[Label] = []
     isRecurring: bool
     recurrenceRule: Optional[str] = None
     createdAt: datetime

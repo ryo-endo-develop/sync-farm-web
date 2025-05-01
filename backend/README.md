@@ -12,6 +12,34 @@
 5.  API ドキュメント (Swagger UI) は `http://localhost:8000/docs` で確認できます。
 6.  データベースにはホストから `localhost:3307` で接続できます（ユーザー名/パスワードは `.env` を参照）。
 
+## データベースの確認 (Docker コンテナ内)
+
+開発中にコンテナ内の MySQL データベースの状態を確認するには、以下の手順を実行します。
+
+1.  **コンテナが起動していることを確認:**
+
+    ```bash
+    docker compose ps
+    ```
+
+    (`syncfam_db` コンテナが running/healthy であること)
+
+2.  **MySQL クライアントで接続:**
+    ターミナルでプロジェクトルート (`backend`) に移動し、以下のコマンドを実行します。（ユーザー名、パスワード、DB 名は `.env` ファイルの値に合わせてください）
+
+    ```bash
+    docker compose exec db mysql -u devuser -pdevpassword syncfam_db
+    ```
+
+    - **注意:** `-p` とパスワードの間にスペースは入れません。
+
+3.  **SQL コマンドを実行:**
+    `mysql>` プロンプトが表示されたら、SQL コマンドでデータを確認できます。
+    - テーブル一覧: `SHOW TABLES;`
+    - テーブル構造 (例: tasks): `DESCRIBE tasks;`
+    - データ表示 (例: tasks): `SELECT * FROM tasks;`
+    - 終了: `exit;`
+
 ## データベースマイグレーション (Alembic)
 
 データベースのスキーマ（テーブル定義など）の変更は Alembic を使って管理します。SQLAlchemy モデル (`app/models.py`) を変更した場合、以下の手順でマイグレーションを実行します。

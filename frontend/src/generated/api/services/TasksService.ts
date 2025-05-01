@@ -5,7 +5,6 @@
 import type { CreateTaskInput } from '../models/CreateTaskInput';
 import type { PaginatedTasksResponse } from '../models/PaginatedTasksResponse';
 import type { PutTaskInput } from '../models/PutTaskInput';
-import type { SuccessResponse } from '../models/SuccessResponse';
 import type { Task } from '../models/Task';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -68,16 +67,14 @@ export class TasksService {
     }
     /**
      * 新規タスク作成
-     * @returns any タスク作成成功
+     * @returns Task タスク作成成功
      * @throws ApiError
      */
     public static postTasks({
         requestBody,
     }: {
         requestBody: CreateTaskInput,
-    }): CancelablePromise<(SuccessResponse & {
-        data: Task;
-    })> {
+    }): CancelablePromise<Task> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/tasks',
@@ -91,7 +88,7 @@ export class TasksService {
     }
     /**
      * タスク更新 (全量)
-     * @returns any タスク更新成功
+     * @returns Task タスク更新成功
      * @throws ApiError
      */
     public static putTasks({
@@ -103,9 +100,7 @@ export class TasksService {
          */
         taskId: string,
         requestBody: PutTaskInput,
-    }): CancelablePromise<(SuccessResponse & {
-        data: Task;
-    })> {
+    }): CancelablePromise<Task> {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/tasks/{taskId}',

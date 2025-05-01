@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { Label } from './Label';
 export type Task = {
     /**
      * タスクの一意なID (サーバーで自動採番)
@@ -24,9 +25,9 @@ export type Task = {
      */
     isCompleted: boolean;
     /**
-     * タスクに付与されたラベルの配列
+     * タスクに付与されたラベルのリスト
      */
-    labels: Array<string>;
+    labels: Array<Label>;
     /**
      * このタスクが定常タスクかどうか
      */

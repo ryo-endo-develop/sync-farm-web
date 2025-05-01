@@ -1,0 +1,39 @@
+# syncfam-backend/pyproject.toml (exclude に migrations/versions/ を追加)
+
+[tool.black]
+line-length = 79
+target-version = ['py311']
+# ★ 除外設定を追加 (正規表現)
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations/versions # ★ 追加
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+# ★ 除外設定を追加
+skip_glob = ["migrations/versions/*"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+# strict = true
+
+# ★ 除外設定を追加
+exclude = ['migrations/versions/']
+
+# plugins = sqlalchemy.ext.mypy.plugin
+

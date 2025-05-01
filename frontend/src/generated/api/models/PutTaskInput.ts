@@ -23,8 +23,8 @@ export type PutTaskInput = {
      */
     isCompleted: boolean;
     /**
-     * 更新後のラベル配列 (既存のラベルはこれで上書きされる)
+     * 更新後のラベルID配列 (これで既存の紐付けは上書きされる。必須、最低1つ)
      */
-    labels: Array<string>;
+    label_ids: Array<string>;
 };
 

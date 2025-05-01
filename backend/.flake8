@@ -1,0 +1,19 @@
+[flake8]
+ignore =
+    W503,
+    E203,
+    # ANN101,
+    # ANN102,
+    # ANN401,
+    B008,
+max-complexity = 10
+exclude =
+    .git,
+    __pycache__,
+    migrations/versions/, # ★ 自動生成されるマイグレーションスクリプトを除外
+    venv,
+    env
+
+# flake8-annotations の設定 (任意)
+suppress-none-returning = true
+allow-star-arg-any = true

@@ -16,8 +16,8 @@ export type CreateTaskInput = {
      */
     dueDate?: string | null;
     /**
-     * 新規作成時に付与するラベルの配列 (任意)
+     * 紐付けるラベルのID配列 (必須、最低1つ)
      */
-    labels: Array<string>;
+    label_ids: Array<string>;
 };
 

@@ -9,21 +9,26 @@ services:
       # ★ alembic.ini と migrations ディレクトリもマウント (alembic コマンド実行用)
       - ./alembic.ini:/app/alembic.ini
       - ./migrations:/app/migrations
+      - ./.flake8:/app/.flake8
+      - ./pyproject.toml:/app/pyproject.toml
     environment:
       # ★ .env ファイルから DATABASE_URL を読み込む
       # FastAPI アプリ側 (database.py) でこの環境変数を参照する
       DATABASE_URL: ${DATABASE_URL}
       # 個別の変数を使う場合は以下のようにする
-      # DB_USER: ${MYSQL_USER}
-      # DB_PASSWORD: ${MYSQL_PASSWORD}
-      # DB_HOST: db
-      # DB_PORT: 3306
-      # DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      PYTHONPATH: /app
     depends_on:
       db:
         condition: service_healthy
     networks:
       - syncfam_network
+    command:
+      ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     # ★ 開発用にコンテナが起動し続けるようにする (任意)
     # command: sleep infinity # uvicorn ではなく、手動で起動する場合など
 

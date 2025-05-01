@@ -9,6 +9,10 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { CreateTaskInput } from './models/CreateTaskInput';
 export type { ErrorResponse } from './models/ErrorResponse';
+export type { Label } from './models/Label';
+export type { LabelCreateInput } from './models/LabelCreateInput';
+export type { LabelIdParam } from './models/LabelIdParam';
+export type { LabelUpdateInput } from './models/LabelUpdateInput';
 export type { PaginatedTasksResponse } from './models/PaginatedTasksResponse';
 export type { PaginationLimitParam } from './models/PaginationLimitParam';
 export type { PaginationMeta } from './models/PaginationMeta';
@@ -23,6 +27,7 @@ export type { TaskLabelsFilterParam } from './models/TaskLabelsFilterParam';
 export { TaskSortParam } from './models/TaskSortParam';
 export type { User } from './models/User';
 
+export { LabelsService } from './services/LabelsService';
 export { MembersService } from './services/MembersService';
 export { MetaService } from './services/MetaService';
 export { TasksService } from './services/TasksService';

@@ -42,3 +42,9 @@ docker-compose.*.yml
 
 # Alembic
 migrations/versions/*.py
+
+
+app/alembic.ini
+app/migrations/
+app/.flake8
+app/pyproject.toml

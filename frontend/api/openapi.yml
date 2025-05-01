@@ -76,6 +76,29 @@ components:
         - data
         - meta
 
+    # --- Label Schema ★★★ ---
+    Label:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ラベルの一意なID
+          readOnly: true
+        name:
+          type: string
+          description: ラベル名
+          example: "家事"
+        color: # (任意)
+          type: string
+          description: "ラベルの色 (例: HEXカラーコード)"
+          example: "#4A90E2"
+          nullable: true
+        # createdAt, updatedAt は API レスポンスに含めなくても良いかも
+      required:
+        - id
+        - name
+
     # --- Task Schemas ---
     Task:
       type: object
@@ -109,9 +132,8 @@ components:
         labels:
           type: array
           items:
-            type: string
-          description: タスクに付与されたラベルの配列
-          example: ["家事", "買い物"]
+            $ref: '#/components/schemas/Label' # Label スキーマを参照
+          description: タスクに付与されたラベルのリスト
         isRecurring:
           type: boolean
           description: このタスクが定常タスクかどうか
@@ -141,7 +163,7 @@ components:
         - createdAt
         - updatedAt
 
-    # POST /tasks のリクエストボディ (IDは含まない)
+    # Task操作
     CreateTaskInput:
       type: object
       properties:
@@ -162,18 +184,17 @@ components:
           nullable: true
           description: 期限日 (YYYY-MM-DD, null許容)
           # pattern: '^\d{4}-\d{2}-\d{2}$' # 正規表現でのバリデーション例
-        labels:
+        label_ids:
           type: array
           items:
             type: string
-          description: 新規作成時に付与するラベルの配列 (任意)
-          example: ["重要"]
-          minItems: 1
+            format: uuid
+          description: 紐付けるラベルのID配列 (必須、最低1つ)
+          minItems: 1 # 最低1つのラベルIDを必須とする
+          example: ["label-uuid-1", "label-uuid-2"]
       required:
         - name
-        - labels
-
-    # PUT /tasks/{taskId} のリクエストボディ
+        - label_ids
     PutTaskInput:
       type: object
       description: 更新後のタスクの完全な状態 (id, createdAt, updatedAtを除く)
@@ -198,21 +219,20 @@ components:
           type: boolean
           description: 完了状態フラグ (必須)
           example: true
-        labels:
+        label_ids:
           type: array
           items:
             type: string
-          description: 更新後のラベル配列 (既存のラベルはこれで上書きされる)
-          example: ["家事"]
-          minItems: 1
+            format: uuid
+          description: 更新後のラベルID配列 (これで既存の紐付けは上書きされる。必須、最低1つ)
+          minItems: 1 # 最低1つのラベルIDを必須とする
+          example: ["label-uuid-3"]
       required:
         - name
         - isCompleted
-        - labels
-        # assigneeId, dueDate は nullable なので必須ではない
+        - label_ids
 
-
-    # --- User Schemas ---
+    # User操作
     User:
       type: object
       properties:
@@ -249,6 +269,35 @@ components:
         - name
         - createdAt
         - updatedAt
+
+    # Label 操作
+    LabelCreateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 新しいラベル名 (必須)
+          minLength: 1
+          maxLength: 50 # 例
+        color:
+          type: string
+          description: ラベルの色 (任意)
+          nullable: true
+      required:
+        - name
+    LabelUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 更新後のラベル名 (任意)
+          minLength: 1
+          maxLength: 50
+        color:
+          type: string
+          description: 更新後のラベルの色 (任意)
+          nullable: true
+      minProperties: 1 # 最低1つのプロパティが必要
 
   parameters:
     TaskIdParam:
@@ -317,6 +366,15 @@ components:
         type: string # カンマ区切りの文字列として渡す
         example: "家事,重要"
 
+    LabelIdParam:
+      name: labelId
+      in: path
+      required: true
+      description: 操作対象のラベルID
+      schema:
+        type: string
+        format: uuid
+
 paths:
   /health:
     get:
@@ -352,7 +410,6 @@ paths:
           content:
             application/json:
               schema:
-                # SuccessResponseでラップし、dataの中身を定義
                 $ref: '#/components/schemas/PaginatedTasksResponse'
         '400': # パラメータ不正などの場合
           description: Bad Request (Invalid query parameters)
@@ -376,33 +433,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateTaskInput'
-            # リクエストボディ全体のサンプル例
-            examples:
-              minimal:
-                summary: 最小限のタスク
-                value:
-                  name: '会議資料作成'
-              full:
-                summary: 全項目指定
-                value:
-                  name: 'プレゼン準備'
-                  assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
-                  dueDate: '2025-05-10'
       responses:
         '201':
           description: タスク作成成功
           content:
             application/json:
               schema:
-                # SuccessResponseでラップし、dataの中身を定義
-                allOf:
-                  - $ref: '#/components/schemas/SuccessResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/Task'
-                    required:
-                      - data
+                $ref: '#/components/schemas/Task'
         '400':
           description: Bad Request (バリデーションエラーなど)
           content:
@@ -428,35 +465,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PutTaskInput'
-            examples:
-              updateTask:
-                summary: タスク情報の更新
-                value:
-                  name: '買い物リストの更新'
-                  assigneeId: 'f0e9d8c7-b6a5-4321-fedc-ba9876543210'
-                  dueDate: '2025-04-25'
-                  isCompleted: false
-              completeTask:
-                summary: タスクを完了にする
-                value:
-                  name: '会議室予約'
-                  assigneeId: null
-                  dueDate: null
-                  isCompleted: true
       responses:
         '200': # 成功時は 200 OK で更新後のリソースを返す
           description: タスク更新成功
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/SuccessResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/Task'
-                    required:
-                      - data
+                $ref: '#/components/schemas/Task'
         '400':
           description: Bad Request (バリデーションエラーなど)
           content:
@@ -536,6 +551,62 @@ paths:
                         name: '山田 花子'
                         createdAt: '2025-02-20T15:30:00Z'
                         updatedAt: '2025-03-01T09:45:00Z'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # --- Labels API ---
+  /labels:
+    get:
+      summary: ラベル一覧取得
+      tags: [Labels]
+      description: 利用可能なすべてのラベルを取得します。
+      responses:
+        '200':
+          description: ラベル一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object # SuccessResponse でラップしても良い
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Label'
+                required:
+                  - data
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: 新規ラベル作成
+      tags: [Labels]
+      description: 新しいラベルを作成します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabelCreateInput'
+      responses:
+        '201':
+          description: ラベル作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label' # 作成されたラベルを返す
+        '400': # バリデーションエラーや名前重複など
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error
           content:

@@ -1,49 +1,98 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Text, JSON # JSON 型を追加
+import uuid
+from typing import Self
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table
+from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import CHAR # UUID 用
-from sqlalchemy.sql import func # デフォルトタイムスタンプ用
-import uuid # UUID 生成用
+from sqlalchemy.sql import func
 
-from .database import Base # database.py で定義した Base をインポート
+from database import Base  # database.py で定義した Base をインポート
 
-# データベースのテーブル構造をPythonクラスとして定義
-# Task テーブルに対応するモデル
-class Task(Base):
-    __tablename__ = "tasks" # テーブル名
+# --- 中間テーブル (task_labels) の定義 ---
+task_labels_table = Table(
+    "task_labels",  # テーブル名
+    Base.metadata,
+    Column(
+        "task_id",
+        CHAR(36),
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "label_id",
+        CHAR(36),
+        ForeignKey("labels.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    # ondelete="CASCADE" はタスクやラベルが削除されたら関連も削除する設定 (任意)
+)
 
-    # カラム定義
-    # id: UUID 型を CHAR(36) で表現 (MySQL の場合)
+
+# --- Label テーブルに対応するモデル ---
+class Label(Base):
+    __tablename__ = "labels"
+
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(100), nullable=False, index=True) # index=True で検索を高速化
-    assigneeId = Column(CHAR(36), nullable=True, index=True) # 外部キー制約は後で User モデルと紐付ける
-    dueDate = Column(DateTime, nullable=True) # SQLAlchemy では Date 型もあるが DateTime が汎用的
+    name = Column(
+        String(50), nullable=False, unique=True, index=True
+    )  # ラベル名はユニーク制約
+    color = Column(String(7), nullable=True)  # HEXカラーコード想定 (#RRGGBB)
+    createdAt = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updatedAt = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    # Task モデルとのリレーションシップ (Task モデル側で back_populates)
+    tasks = relationship(
+        "Task",
+        secondary=task_labels_table,
+        back_populates="labels",  # Task モデル側の 'labels' 属性と紐付け
+    )
+
+    def __repr__(self: Self) -> str:
+        return f"<Label(id={self.id}, name='{self.name}')>"
+
+
+# --- Task テーブルに対応するモデル ---
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False, index=True)
+    assigneeId = Column(CHAR(36), nullable=True, index=True)
+    dueDate = Column(DateTime, nullable=True)
     isCompleted = Column(Boolean, default=False, nullable=False, index=True)
-    # labels: 文字列の配列は JSON 型または TEXT 型 (カンマ区切り) で保存
-    # MySQL 5.7+ なら JSON 型が使える
-    labels = Column(JSON, nullable=False, default=[]) # デフォルトを空配列に
-    # labels = Column(Text, nullable=False, default='') # TEXT 型の場合
     isRecurring = Column(Boolean, default=False, nullable=False, index=True)
-    recurrenceRule = Column(String(100), nullable=True) # ルール文字列を保存
+    recurrenceRule = Column(String(100), nullable=True)
+    createdAt = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updatedAt = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
-    # タイムスタンプ (デフォルト値と自動更新)
-    createdAt = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updatedAt = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    # ★★★ Label モデルとの Many-to-Many リレーションシップを設定 ★★★
+    labels = relationship(
+        "Label",  # 関連付けるモデルクラス名
+        secondary=task_labels_table,  # 中間テーブルを指定
+        back_populates="tasks",  # Label モデル側のリレーションシップ名 (Label モデル側で定義する場合)
+        lazy="selectin",  # ★ N+1 問題を避けるためのロード戦略 (推奨)
+        # lazy="joined" も選択肢だが、常に JOIN するため状況による
+    )
 
-    # --- リレーションシップ (後で User モデルと紐付ける) ---
-    # owner = relationship("User", back_populates="tasks") # 仮
+    # --- User モデルとのリレーションシップ (後で User モデル側で back_populates) ---
+    # assignee = relationship("User", back_populates="assigned_tasks") # 例
 
-    def __repr__(self):
+    def __repr__(self: Self) -> str:
         return f"<Task(id={self.id}, name='{self.name}')>"
 
-# --- User テーブルに対応するモデル (後で定義) ---
-# class User(Base):
-#     __tablename__ = "users"
-#     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-#     name = Column(String(100), nullable=False)
-#     email = Column(String(255), unique=True, index=True, nullable=True) # 例
-#     # hashed_password = Column(String(255)) # パスワードハッシュ
-#     createdAt = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-#     updatedAt = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-#
-#     # tasks = relationship("Task", back_populates="owner") # Task モデルとのリレーション
 
+# --- User テーブルに対応するモデル (後で定義) ---

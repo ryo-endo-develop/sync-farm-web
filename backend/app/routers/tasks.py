@@ -137,41 +137,48 @@ async def read_tasks(
     )
 
     # ★ current_user_id を取得 (認証が必要) - 今は仮で None
-    current_user_id_placeholder = None  # TODO: Replace with actual user
+    current_user_id_placeholder = (
+        "f0e9d8c7-b6a5-4321-fedc-ba9876543210" if assigneeId == "me" else None
+    )
+
     if assigneeId == "me" and not current_user_id_placeholder:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required for 'me' filter",
         )
+    try:
+        tasks_list, total_regular_tasks = crud.get_tasks(
+            db=db,
+            assignee_id=assigneeId,
+            is_completed=isCompleted,
+            labels=label_list,
+            sort=sort,
+            page=page,
+            limit=limit,
+            current_user_id=current_user_id_placeholder,
+        )
+    except Exception as e:
+        # CRUD 層で予期せぬエラーが発生した場合
+        print(f"Error fetching tasks: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve tasks",
+        )
 
-    # crud.get_tasks を呼び出し
-    tasks_list, total_regular_tasks = crud.get_tasks(
-        db=db,
-        assignee_id=assigneeId,
-        is_completed=isCompleted,
-        labels=label_list,
-        sort=sort,
-        page=page,
-        limit=limit,
-        current_user_id=current_user_id_placeholder,
-    )
-
-    # ページネーションメタデータを作成
     total_pages = (
         (total_regular_tasks + limit - 1) // limit if limit > 0 else 0
     )
 
     # レスポンスを構築
     response = schemas.PaginatedTasksResponse(
-        data=tasks_list,  # 定常タスク + 通常タスク
+        data=tasks_list,  # FastAPI が models -> schemas に変換
         meta=schemas.PaginationMeta(
-            totalItems=total_regular_tasks,  # 通常タスクの総数
+            totalItems=total_regular_tasks,
             totalPages=total_pages,
             currentPage=page,
             limit=limit,
         ),
     )
-    # FastAPI が models.Task を schemas.Task に変換してくれる
     return response
 
 
@@ -183,7 +190,7 @@ async def read_tasks(
 )
 async def delete_existing_task(
     task_id: str, db: Session = Depends(get_db)
-) -> None:  # 戻り値なし
+) -> None:
     """
     指定された ID の通常のタスクを削除します。
     定常タスクの定義は削除されません。
@@ -200,12 +207,10 @@ async def delete_existing_task(
 
     deleted = crud.delete_task(db=db, task_id=task_id)
     if not deleted:
+        # crud.delete_task が False を返した場合 (見つからない or 定常タスク)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                f"Task not found with id: {task_id}"
-                "or it might be a recurring task"
-            ),
+            detail=f"Task not found with id: {task_id} or recurring task.",
         )
     # 成功時は None を返す (FastAPI が 204 を返す)
     return None

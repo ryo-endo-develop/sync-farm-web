@@ -17,23 +17,17 @@ class LabelBase(BaseModel):
 
 
 # API の LabelCreateInput に対応
-
-
 class LabelCreate(LabelBase):
     pass
 
 
 # API の LabelUpdateInput に対応
-
-
 class LabelUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=50)
     color: Optional[str] = None
 
 
 # API の Label レスポンスに対応
-
-
 class Label(LabelBase):
     id: UUID4
     # createdAt, updatedAt は含めない (OpenAPI 仕様に合わせる)
@@ -43,8 +37,6 @@ class Label(LabelBase):
 
 
 # --- Task Schemas ---
-
-
 # ベースとなる Task スキーマ (共通フィールド)
 class TaskBase(BaseModel):
     name: str = Field(
@@ -78,7 +70,9 @@ class TaskUpdateApiInput(TaskBase):
 class Task(TaskBase):
     id: UUID4
     isCompleted: bool
-    labels: List[Label] = []
+    labels: List[Label] = Field(
+        default=[], description="タスクに付与されたラベルのリスト"
+    )
     isRecurring: bool
     recurrenceRule: Optional[str] = None
     createdAt: datetime

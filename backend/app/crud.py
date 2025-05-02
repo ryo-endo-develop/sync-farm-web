@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, and_, delete
+from sqlalchemy import ColumnElement, and_, case
 from sqlalchemy import func as sql_func
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -26,7 +26,6 @@ def get_labels_by_ids(
     """
     if not label_ids:
         return []
-    # UUID を文字列に変換してクエリに使用
     label_id_strs = [str(label_id) for label_id in label_ids]
     stmt = select(models.Label).where(models.Label.id.in_(label_id_strs))
     return list(db.scalars(stmt).all())
@@ -61,47 +60,60 @@ def _build_task_filter_conditions(
 ) -> List[ColumnElement[bool]]:  # SQLAlchemy の条件式のリストを返す
     """タスク一覧取得用のフィルター条件リストを構築する。"""
     filter_conditions: List[ColumnElement[bool]] = []
-    filter_conditions.append(
-        models.Task.isRecurring is False
-    )  # 通常タスクのみ
+    filter_conditions.append(models.Task.isRecurring == 0)  # 通常タスクのみ
 
+    effective_assignee_id: Optional[str] = None
     if assignee_id == "me" and current_user_id:
-        filter_conditions.append(models.Task.assigneeId == current_user_id)
+        effective_assignee_id = current_user_id
     elif assignee_id and assignee_id != "me":
-        filter_conditions.append(models.Task.assigneeId == assignee_id)
+        try:
+            UUID(assignee_id, version=4)
+            effective_assignee_id = assignee_id
+        except ValueError:
+            print(
+                f"Warning: Invalid assigneeId format in filter: {assignee_id}"
+            )
+
+    if effective_assignee_id is not None:
+        filter_conditions.append(
+            models.Task.assigneeId == effective_assignee_id
+        )
 
     if is_completed is not None:
-        filter_conditions.append(models.Task.isCompleted == is_completed)
+        filter_conditions.append(
+            models.Task.isCompleted == (1 if is_completed else 0)
+        )
 
     if labels:
-        # AND 条件の場合 (すべてのラベルを含む)
-        for label_name in labels:
-            filter_conditions.append(
-                models.Task.labels.any(models.Label.name == label_name)
-            )
-        # OR 条件の場合 (いずれかのラベルを含む)
-        # label_conditions =
-        #     [models.Task.labels.any(models.Label.name == name)
-        #      for name in labels]
-        # filter_conditions.append(or_(*label_conditions))
-
+        label_conditions = [
+            models.Task.labels.any(models.Label.name == label_name)
+            for label_name in labels
+        ]
+        if label_conditions:
+            filter_conditions.append(and_(*label_conditions))
     return filter_conditions
 
 
 # get_tasks 用のヘルパー関数 (ソート条件構築)
 def _build_task_order_by_clause(sort: str) -> Optional[ColumnElement]:
     """タスク一覧取得用のソート条件式を構築する。"""
-    order_by_clause = None
+    order_by_clauses: List[ColumnElement] = []
     if sort == "dueDate_asc":
-        order_by_clause = models.Task.dueDate.asc().nullslast()
+        order_by_clauses.append(
+            case((models.Task.dueDate.is_(None), 1), else_=0).asc()
+        )
+        order_by_clauses.append(models.Task.dueDate.asc())
     elif sort == "dueDate_desc":
-        order_by_clause = models.Task.dueDate.desc().nullslast()
+        order_by_clauses.append(
+            case((models.Task.dueDate.is_(None), 1), else_=0).asc()
+        )
+        order_by_clauses.append(models.Task.dueDate.desc())
     elif sort == "createdAt_asc":
-        order_by_clause = models.Task.createdAt.asc()
+        order_by_clauses.append(models.Task.createdAt.asc())
     elif sort == "createdAt_desc":  # デフォルト含む
-        order_by_clause = models.Task.createdAt.desc()
-    # 他のソート条件も追加可能
-    return order_by_clause
+        order_by_clauses.append(models.Task.createdAt.desc())
+    order_by_clauses.append(models.Task.id.asc())
+    return order_by_clauses if order_by_clauses else None
 
 
 # --- Label CRUD ---
@@ -195,6 +207,8 @@ def create_task(
     #    Pydantic スキーマから SQLAlchemy モデルへの変換
     #    task_data.model_dump() を使うが、label_ids は除外する
     task_dict = task_data.model_dump(exclude={"label_ids"})
+    if task_dict.get("assigneeId") is not None:
+        task_dict["assigneeId"] = str(task_dict["assigneeId"])
     db_task = models.Task(**task_dict)
 
     # 3. 取得した Label オブジェクトを Task の labels リレーションシップに追加
@@ -246,7 +260,10 @@ def update_task(
         exclude={"label_ids"}, exclude_unset=True
     )  # 未設定の項目は除外しない (PUT なので)
     for key, value in update_data.items():
-        setattr(db_task, key, value)  # db_task.name = value のように属性を設定
+        if key == "assigneeId" and value is not None:
+            setattr(db_task, key, str(value))
+        else:
+            setattr(db_task, key, value)
 
     # 4. ラベルの関連を更新 (既存をクリアして新しいものを追加)
     db_task.labels.clear()  # 既存の関連をクリア
@@ -293,7 +310,7 @@ def get_tasks(
     routine_stmt = (
         select(models.Task)
         .options(selectinload(models.Task.labels))
-        .where(models.Task.isRecurring is True)
+        .where(models.Task.isRecurring == 1)
     )
     todays_routines = list(db.scalars(routine_stmt).all())
 
@@ -318,16 +335,18 @@ def get_tasks(
         regular_task_query = regular_task_query.where(and_(*filter_conditions))
 
     # ソート条件を構築して適用
-    order_by_clause = _build_task_order_by_clause(sort)
-    if order_by_clause is not None:
-        regular_task_query = regular_task_query.order_by(order_by_clause)
+    order_by_clauses = _build_task_order_by_clause(sort)
+    if order_by_clauses is not None:
+        regular_task_query = regular_task_query.order_by(*order_by_clauses)
 
     # ページネーションを適用
     offset = (page - 1) * limit
     regular_task_query = regular_task_query.offset(offset).limit(limit)
+    print(f"[DEBUG] Applying pagination: offset={offset}, limit={limit}")
 
     # --- 5. 通常タスクを取得 ---
     paginated_regular_tasks = list(db.scalars(regular_task_query).all())
+    print(f"Fetched {len(paginated_regular_tasks)} regular tasks for {page}.")
 
     # --- 6. 結果を結合して返す ---
     result_tasks = todays_routines + paginated_regular_tasks
@@ -345,15 +364,21 @@ def delete_task(db: Session, task_id: str) -> bool:
     Returns:
         削除が成功した場合は True、タスクが見つからなかった場合は False。
     """
-    # isRecurring=false の条件を追加し、通常タスクのみ削除可能にする (任意)
-    stmt = delete(models.Task).where(
-        models.Task.id == task_id,
-        models.Task.isRecurring is False,  # 通常タスクのみ削除
+    task_to_delete = db.scalar(
+        select(models.Task).where(
+            models.Task.id == task_id, models.Task.isRecurring == 0
+        )
     )
-    result = db.execute(stmt)
-    db.commit()
-    # result.rowcount は削除された行数を返す
-    return result.rowcount > 0
+
+    if task_to_delete:
+        print(f"[DEBUG] Found regular task to delete: {task_to_delete.name}")
+        db.delete(task_to_delete)
+        db.commit()
+        print("[DEBUG] Task deleted successfully.")
+        return True
+    else:
+        print("[DEBUG] Task not found or is a recurring task.")
+        return False
 
 
 # --- User CRUD (後で実装) ---

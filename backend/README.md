@@ -144,3 +144,40 @@
 
 **(任意) pre-commit フックの設定:**
 Git コミット時に自動的にこれらのチェックを実行させるために、`pre-commit` を設定することも推奨されます。（設定方法は省略）
+
+## テストの実行 (pytest)
+
+単体テストおよび API 統合テストは `pytest` を使用して実行します。テストは `app` ディレクトリ内の `test_*.py` または `*_test.py` という名前のファイルに記述します。
+
+**前提:** Docker コンテナが起動していること (`docker compose up -d`)。テスト用データベースが作成されていること。
+
+1.  **すべてのテストを実行:**
+
+    ```bash
+    docker compose exec app pytest
+    ```
+
+    または、特定のディレクトリを指定:
+
+    ```bash
+    docker compose exec app pytest tests/
+    ```
+
+2.  **特定のファイルを実行:**
+
+    ```bash
+    docker compose exec app pytest tests/routers/test_labels.py # 例
+    ```
+
+3.  **特定のテスト関数を実行:**
+
+    ```bash
+    docker compose exec app pytest tests/routers/test_labels.py::test_create_label_success # 例
+    ```
+
+4.  **カバレッジレポート付きで実行 (pytest-cov が必要):**
+    ```bash
+    docker compose exec app pytest --cov=app --cov-report=term-missing
+    ```
+
+テストは独立しており、実行後にテスト用データベースへの変更はロールバックされます。

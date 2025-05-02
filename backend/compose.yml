@@ -22,6 +22,7 @@ services:
       DB_PORT: 3306
       DB_NAME: ${MYSQL_DATABASE}
       PYTHONPATH: /app
+      TEST_DATABASE_URL: ${TEST_DATABASE_URL}
     depends_on:
       db:
         condition: service_healthy

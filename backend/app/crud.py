@@ -60,8 +60,10 @@ def _build_task_filter_conditions(
 ) -> List[ColumnElement[bool]]:  # SQLAlchemy の条件式のリストを返す
     """タスク一覧取得用のフィルター条件リストを構築する。"""
     filter_conditions: List[ColumnElement[bool]] = []
-    filter_conditions.append(models.Task.isRecurring == 0)  # 通常タスクのみ
+    # 通常タスクのみを対象とする
+    filter_conditions.append(models.Task.isRecurring == 0)
 
+    # 担当者フィルター
     effective_assignee_id: Optional[str] = None
     if assignee_id == "me" and current_user_id:
         effective_assignee_id = current_user_id
@@ -79,11 +81,13 @@ def _build_task_filter_conditions(
             models.Task.assigneeId == effective_assignee_id
         )
 
+    # 完了状態フィルター
     if is_completed is not None:
         filter_conditions.append(
             models.Task.isCompleted == (1 if is_completed else 0)
         )
 
+    # ラベルフィルター (AND 条件)
     if labels:
         label_conditions = [
             models.Task.labels.any(models.Label.name == label_name)
@@ -342,11 +346,9 @@ def get_tasks(
     # ページネーションを適用
     offset = (page - 1) * limit
     regular_task_query = regular_task_query.offset(offset).limit(limit)
-    print(f"[DEBUG] Applying pagination: offset={offset}, limit={limit}")
 
     # --- 5. 通常タスクを取得 ---
     paginated_regular_tasks = list(db.scalars(regular_task_query).all())
-    print(f"Fetched {len(paginated_regular_tasks)} regular tasks for {page}.")
 
     # --- 6. 結果を結合して返す ---
     result_tasks = todays_routines + paginated_regular_tasks
@@ -371,13 +373,10 @@ def delete_task(db: Session, task_id: str) -> bool:
     )
 
     if task_to_delete:
-        print(f"[DEBUG] Found regular task to delete: {task_to_delete.name}")
         db.delete(task_to_delete)
         db.commit()
-        print("[DEBUG] Task deleted successfully.")
         return True
     else:
-        print("[DEBUG] Task not found or is a recurring task.")
         return False
 
 

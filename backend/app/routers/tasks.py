@@ -34,7 +34,6 @@ async def create_new_task(
     指定されたラベル ID が存在しない場合は 404 エラーを返します。
     """
     try:
-        # crud.create_task 関数を呼び出し
         created_task = crud.create_task(db=db, task_data=task_input)
         # FastAPI が response_model に基づいて models.Task -> schemas.Task へ変換
         return created_task

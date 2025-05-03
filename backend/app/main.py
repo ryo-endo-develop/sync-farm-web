@@ -5,6 +5,7 @@ from typing import Dict
 from fastapi import FastAPI
 
 from routers import labels, tasks
+from fastapi.middleware.cors import CORSMiddleware
 
 # プロジェクトルートをパスに追加
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +14,24 @@ if APP_ROOT not in sys.path:
 
 # FastAPI アプリケーションインスタンスを作成
 app = FastAPI(title="SyncFam API", version="1.0.0")
+# --- ★★★ CORS ミドルウェアの設定 ★★★ ---
+#    フロントエンドのオリジン (開発環境) を許可する
+#    本番環境では、実際のフロントエンドのドメインを許可する必要がある
+origins = [
+    "http://localhost:5173",  # Vite のデフォルト開発サーバーポート
+    "http://127.0.0.1:5173",
+    # 必要に応じて他のオリジンを追加 (例: デプロイ先のフロントエンド URL)
+    # "https://your-frontend-domain.com",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # 許可するオリジンのリスト
+    allow_credentials=True,  # クレデンシャル (Cookie など) を許可するかどうか
+    allow_methods=["*"],  # 許可する HTTP メソッド (GET, POST, PUT, DELETE など)
+    allow_headers=["*"],  # 許可する HTTP ヘッダー
+)
+
 
 # ルーターの設定
 app.include_router(labels.router, prefix="/api/v1", tags=["Labels"])
